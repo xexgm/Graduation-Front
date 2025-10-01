@@ -1,0 +1,209 @@
+:root {
+  --primary-color: #409eff;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #c0c4cc;
+  
+  --border-light: #ebeef5;
+  --border-base: #dcdfe6;
+  --border-dark: #c0c4cc;
+  
+  --bg-white: #ffffff;
+  --bg-light: #f5f7fa;
+  --bg-lighter: #fafafa;
+  
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  --shadow-dark: 0 4px 8px rgba(0, 0, 0, 0.12), 0 0 12px rgba(0, 0, 0, 0.08);
+  
+  --radius-small: 4px;
+  --radius-base: 8px;
+  --radius-large: 12px;
+  --radius-round: 50%;
+  
+  --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease-out;
+}
+
+[data-theme="dark"] {
+  --text-primary: #e4e7ed;
+  --text-regular: #cdd0d6;
+  --text-secondary: #a3a6ad;
+  --text-placeholder: #6c6e72;
+  
+  --border-light: #414243;
+  --border-base: #4c4d4f;
+  --border-dark: #58585b;
+  
+  --bg-white: #1d1e1f;
+  --bg-light: #25262b;
+  --bg-lighter: #2c2e33;
+  
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  --shadow-base: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 6px rgba(0, 0, 0, 0.15);
+  --shadow-dark: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(0, 0, 0, 0.2);
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, 
+    #667eea 0%, 
+    #764ba2 100%);
+}
+
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .glass-morphism {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-hover {
+  transition: var(--transition-all);
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-dark);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+
+.bounce-enter-active {
+  animation: bounce-in 0.5s;
+}
+
+.bounce-leave-active {
+  animation: bounce-in 0.5s reverse;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-secondary);
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.message-bubble {
+  position: relative;
+  transition: var(--transition-fast);
+}
+
+.message-bubble:hover {
+  transform: scale(1.02);
+}
+
+.message-bubble::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.message-bubble.sent::before {
+  right: -8px;
+  top: 10px;
+  border-width: 8px 0 8px 8px;
+  border-color: transparent transparent transparent var(--primary-color);
+}
+
+.message-bubble.received::before {
+  left: -8px;
+  top: 10px;
+  border-width: 8px 8px 8px 0;
+  border-color: transparent var(--bg-light) transparent transparent;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-base) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--border-base);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-dark);
+}
