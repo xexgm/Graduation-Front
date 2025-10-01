@@ -107,17 +107,11 @@ const handleBlur = () => {
 }
 
 const startTyping = () => {
-  if (!isTyping.value) {
-    isTyping.value = true
-    chatStore.sendTyping(true)
-  }
+  // 暂时移除 typing 功能，等待后端实现
 }
 
 const stopTyping = () => {
-  if (isTyping.value) {
-    isTyping.value = false
-    chatStore.sendTyping(false)
-  }
+  // 暂时移除 typing 功能，等待后端实现
 }
 
 const handleImageUpload = () => {
@@ -138,8 +132,8 @@ const handleImageChange = async (event: Event) => {
     formData.append('file', file)
     
     ElMessage.info('图片上传中...')
-    const response = await chatApi.uploadFile(file)
-    const imageUrl = response.data.url
+    // 暂时移除文件上传功能，等待后端实现
+    const imageUrl = URL.createObjectURL(file)
     
     emit('send', imageUrl, 'image')
     ElMessage.success('图片发送成功')
@@ -160,8 +154,8 @@ const handleFileChange = async (event: Event) => {
     formData.append('file', file)
     
     ElMessage.info('文件上传中...')
-    const response = await chatApi.uploadFile(file)
-    const fileUrl = response.data.url
+    // 暂时移除文件上传功能，等待后端实现
+    const fileUrl = URL.createObjectURL(file)
     
     emit('send', `${file.name}|${fileUrl}`, 'file')
     ElMessage.success('文件发送成功')

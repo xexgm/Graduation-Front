@@ -1,41 +1,41 @@
 import type { User, ChatRoom, Message } from '@/types'
 
-export const mockUsers: User[] = [
+export const Users: User[] = [
   {
-    id: '1',
+    userId: 1,
     username: 'alice',
     nickname: '爱丽丝',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
-    email: 'alice@example.com',
-    status: 'online',
-    lastSeen: new Date()
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
+    status: 1,
+    createTime: Date.now(),
+    updateTime: Date.now()
   },
   {
-    id: '2', 
+    userId: 2, 
     username: 'bob',
     nickname: '鲍勃',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob',
-    email: 'bob@example.com',
-    status: 'online',
-    lastSeen: new Date()
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob',
+    status: 1,
+    createTime: Date.now(),
+    updateTime: Date.now()
   },
   {
-    id: '3',
+    userId: 3,
     username: 'charlie',
     nickname: '查理',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie',
-    email: 'charlie@example.com',
-    status: 'away',
-    lastSeen: new Date(Date.now() - 10 * 60 * 1000)
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie',
+    status: 0,
+    createTime: Date.now() - 10 * 60 * 1000,
+    updateTime: Date.now() - 10 * 60 * 1000
   }
 ]
 
-export const mockRooms: ChatRoom[] = [
+export const Rooms: ChatRoom[] = [
   {
     id: 'room1',
     name: '',
     type: 'private',
-    participants: [mockUsers[0], mockUsers[1]],
+    participants: [Users[0], Users[1]],
     lastMessage: {
       id: 'msg1',
       senderId: '1',
@@ -54,7 +54,7 @@ export const mockRooms: ChatRoom[] = [
     id: 'room2',
     name: '开发团队',
     type: 'group',
-    participants: [mockUsers[0], mockUsers[1], mockUsers[2]],
+    participants: [Users[0], Users[1], Users[2]],
     lastMessage: {
       id: 'msg2',
       senderId: '2',
@@ -71,7 +71,7 @@ export const mockRooms: ChatRoom[] = [
   }
 ]
 
-export const mockMessages: Record<string, Message[]> = {
+export const Messages: Record<string, Message[]> = {
   room1: [
     {
       id: 'msg1',

@@ -4,7 +4,7 @@
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="user-info">
-          <el-avatar :size="40" :src="userStore.user?.avatar">
+          <el-avatar :size="40" :src="userStore.user?.avatarUrl">
             {{ userStore.user?.nickname?.[0] || userStore.user?.username?.[0] }}
           </el-avatar>
           <div class="user-details">
@@ -13,6 +13,14 @@
           </div>
         </div>
         <div class="sidebar-actions">
+          <el-button
+            v-if="isAdmin"
+            type="text"
+            :icon="Plus"
+            @click="showCreateDialog = true"
+            class="create-room-btn"
+            title="创建聊天室"
+          />
           <el-button
             type="text"
             :icon="Moon"
@@ -50,7 +58,7 @@
                 {{ getRoomName(room)[0] }}
               </el-avatar>
               <div 
-                v-if="room.type === 'private' && isUserOnline(room.participants[0]?.id)"
+                v-if="room.type === 'private' && isUserOnline(room.participants[0]?.userId.toString())"
                 class="online-indicator"
               />
             </div>
@@ -58,6 +66,19 @@
               <div class="room-header">
                 <span class="room-name">{{ getRoomName(room) }}</span>
                 <span class="last-time">{{ formatTime(room.lastMessage?.timestamp) }}</span>
+                <span v-if="isAdmin" class="admin-actions" @click.stop>
+                  <el-dropdown trigger="click" @command="(cmd:any) => handleAdminAction(cmd, room)">
+                    <span class="el-dropdown-link" @click.stop>
+                      <el-icon><MoreFilled /></el-icon>
+                    </span>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="offline">下线</el-dropdown-item>
+                        <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </span>
               </div>
               <div class="room-footer">
                 <span class="last-message">{{ room.lastMessage?.content || '暂无消息' }}</span>
@@ -90,16 +111,40 @@
       </div>
     </div>
   </div>
+  
+  <!-- 创建聊天室对话框 -->
+  <el-dialog v-model="showCreateDialog" title="创建聊天室" width="420px">
+    <el-form :model="createForm" label-width="100px">
+      <el-form-item label="聊天室名称">
+        <el-input v-model="createForm.roomName" placeholder="请输入名称" />
+      </el-form-item>
+      <el-form-item label="聊天室类型">
+        <el-select v-model="createForm.roomType" placeholder="选择类型" style="width: 180px;">
+          <el-option label="公开" value="PUBLIC_ROOM" />
+          <el-option label="私有" value="PRIVATE_ROOM" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="描述">
+        <el-input v-model="createForm.description" placeholder="可选" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="showCreateDialog = false">取消</el-button>
+      <el-button type="primary" :disabled="!createForm.roomName" @click="handleCreateRoom">创建</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref, reactive } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, 
   Setting, 
   Moon, 
-  ChatDotRound 
+  ChatDotRound,
+  Plus,
+  MoreFilled
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useUserStore } from '@/stores/user'
@@ -116,6 +161,13 @@ const themeStore = useThemeStore()
 
 const searchKeyword = ref('')
 const currentRoom = computed(() => chatStore.currentRoom)
+const isAdmin = computed(() => userStore.user?.role === 1)
+
+// 创建聊天室对话框
+const showCreateDialog = ref(false)
+const createForm = reactive<{ roomName: string; roomType: 'PUBLIC_ROOM' | 'PRIVATE_ROOM'; description?: string}>(
+  { roomName: '', roomType: 'PUBLIC_ROOM', description: '' }
+)
 
 const filteredRooms = computed(() => {
   if (!searchKeyword.value) return chatStore.rooms
@@ -129,14 +181,14 @@ const filteredRooms = computed(() => {
 const getRoomName = (room: ChatRoom) => {
   if (room.name) return room.name
   if (room.type === 'private') {
-    const otherUser = room.participants.find(p => p.id !== userStore.user?.id)
+    const otherUser = room.participants.find(p => p.userId !== userStore.user?.userId)
     return otherUser?.nickname || otherUser?.username || '未知用户'
   }
   return '群聊'
 }
 
 const isUserOnline = (userId: string) => {
-  return chatStore.onlineUsers.has(userId)
+  return chatStore.onlineUsers.has(parseInt(userId))
 }
 
 const formatTime = (timestamp?: Date) => {
@@ -170,6 +222,41 @@ const handleSendMessage = async (content: string) => {
     await chatStore.sendMessage(content)
   } catch (error: any) {
     ElMessage.error('发送消息失败')
+  }
+}
+
+const handleCreateRoom = async () => {
+  if (!createForm.roomName) return
+  try {
+    const room = await chatStore.createRoom(createForm.roomName, createForm.description, createForm.roomType)
+    ElMessage.success('创建成功')
+    // 可选：自动选中新建房间
+    chatStore.setCurrentRoom(room)
+    showCreateDialog.value = false
+    createForm.roomName = ''
+    createForm.description = ''
+    createForm.roomType = 'PUBLIC_ROOM'
+  } catch (e: any) {
+    ElMessage.error(e.message || '创建失败')
+  }
+}
+
+const handleAdminAction = async (cmd: string, room: any) => {
+  if (cmd === 'offline') {
+    try {
+      await chatStore.offlineRoom(parseInt(room.id))
+      ElMessage.success('已下线')
+    } catch (e: any) {
+      ElMessage.error(e.message || '下线失败')
+    }
+  } else if (cmd === 'delete') {
+    try {
+      await ElMessageBox.confirm('确认删除该聊天室？操作不可恢复', '提示', { type: 'warning' })
+      await chatStore.deleteRoom(parseInt(room.id))
+      ElMessage.success('已删除')
+    } catch (e: any) {
+      if (e !== 'cancel') ElMessage.error(e.message || '删除失败')
+    }
   }
 }
 
@@ -303,6 +390,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
+  gap: 8px;
 }
 
 .room-name {
@@ -318,6 +406,12 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+.admin-actions {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
 }
 
 .room-footer {

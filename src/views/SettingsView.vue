@@ -12,7 +12,7 @@
         <h2>个人信息</h2>
         <div class="profile-card">
           <div class="avatar-section">
-            <el-avatar :size="80" :src="userStore.user?.avatar" class="user-avatar">
+            <el-avatar :size="80" :src="userStore.user?.avatarUrl" class="user-avatar">
               {{ userStore.user?.nickname?.[0] || userStore.user?.username?.[0] }}
             </el-avatar>
             <el-button type="primary" size="small" @click="handleAvatarUpload">
@@ -34,10 +34,6 @@
             
             <el-form-item label="昵称">
               <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
-            </el-form-item>
-            
-            <el-form-item label="邮箱">
-              <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
             </el-form-item>
             
             <el-form-item>
@@ -121,19 +117,58 @@
           </el-button>
         </div>
       </div>
+
+      <!-- 管理员：聊天室管理 -->
+      <div class="settings-section" v-if="isAdmin">
+        <h2>聊天室管理（管理员）</h2>
+        <div class="settings-card">
+          <el-form :model="roomForm" label-width="100px" class="room-form">
+            <el-form-item label="聊天室名称">
+              <el-input v-model="roomForm.roomName" placeholder="请输入名称" />
+            </el-form-item>
+            <el-form-item label="聊天室类型">
+              <el-select v-model="roomForm.roomType" placeholder="选择类型" style="width: 180px;">
+                <el-option label="公开" value="PUBLIC_ROOM" />
+                <el-option label="私有" value="PRIVATE_ROOM" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="描述">
+              <el-input v-model="roomForm.description" placeholder="可选" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :disabled="!roomForm.roomName" @click="handleCreateRoom">
+                创建聊天室
+              </el-button>
+            </el-form-item>
+          </el-form>
+
+          <div class="admin-room-list">
+            <div class="admin-room-item" v-for="room in chatStore.rooms" :key="room.id">
+              <div class="admin-room-info">
+                <div class="room-name">{{ room.name || '未命名聊天室' }}</div>
+                <div class="room-meta">ID: {{ room.id }}</div>
+              </div>
+              <div class="admin-room-actions">
+                <el-button size="small" @click="handleOffline(room)">下线</el-button>
+                <el-button size="small" type="danger" @click="handleDelete(room)">删除</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useChatStore } from '@/stores/chat'
-import { userApi } from '@/api'
+// import { userApi } from '@/api' // 暂时移除，等待后端实现
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -146,7 +181,7 @@ const updating = ref(false)
 const profileForm = reactive({
   username: userStore.user?.username || '',
   nickname: userStore.user?.nickname || '',
-  email: userStore.user?.email || ''
+  // email: userStore.user?.email || '' // 移除不存在的 email 属性
 })
 
 const settings = reactive({
@@ -155,6 +190,16 @@ const settings = reactive({
   autoLogin: localStorage.getItem('remember') === 'true',
   showOnlineStatus: true,
   readReceipts: true
+})
+
+// 管理员判定：role === 1
+const isAdmin = computed(() => userStore.user?.role === 1)
+
+// 聊天室表单
+const roomForm = reactive<{ roomName: string; description?: string; roomType: 'PUBLIC_ROOM' | 'PRIVATE_ROOM' }>({
+  roomName: '',
+  description: '',
+  roomType: 'PUBLIC_ROOM'
 })
 
 const isDarkMode = computed({
@@ -179,9 +224,10 @@ const handleAvatarChange = async (event: Event) => {
 
   try {
     ElMessage.info('头像上传中...')
-    const response = await userApi.updateAvatar(file)
+    // 暂时移除文件上传功能，等待后端实现
+    const avatarUrl = URL.createObjectURL(file)
     
-    userStore.updateUser({ avatar: response.data.avatar })
+    userStore.updateUser({ avatarUrl })
     ElMessage.success('头像更新成功')
   } catch (error: any) {
     ElMessage.error('头像上传失败')
@@ -194,12 +240,10 @@ const updateProfile = async () => {
   try {
     updating.value = true
     
-    const response = await userApi.updateProfile({
-      nickname: profileForm.nickname,
-      email: profileForm.email
+    // 暂时移除 API 调用，等待后端实现
+    userStore.updateUser({
+      nickname: profileForm.nickname
     })
-    
-    userStore.updateUser(response.data)
     ElMessage.success('个人信息更新成功')
   } catch (error: any) {
     ElMessage.error('更新失败，请重试')
@@ -228,6 +272,45 @@ const handleLogout = async () => {
     // 用户取消操作
   }
 }
+
+const handleCreateRoom = async () => {
+  try {
+    const created = await chatStore.createRoom(roomForm.roomName, roomForm.description, roomForm.roomType)
+    ElMessage.success(`已创建：${created.name}`)
+    roomForm.roomName = ''
+    roomForm.description = ''
+    roomForm.roomType = 'PUBLIC_ROOM'
+  } catch (e: any) {
+    ElMessage.error(e.message || '创建失败')
+  }
+}
+
+const handleOffline = async (room: { id: string }) => {
+  try {
+    await chatStore.offlineRoom(parseInt(room.id))
+    ElMessage.success('已下线')
+  } catch (e: any) {
+    ElMessage.error(e.message || '下线失败')
+  }
+}
+
+const handleDelete = async (room: { id: string }) => {
+  try {
+    await ElMessageBox.confirm('确认删除该聊天室？操作不可恢复', '提示', { type: 'warning' })
+    await chatStore.deleteRoom(parseInt(room.id))
+    ElMessage.success('已删除')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '删除失败')
+    }
+  }
+}
+
+onMounted(async () => {
+  if (!chatStore.rooms.length) {
+    try { await chatStore.fetchRooms() } catch {}
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -360,5 +443,40 @@ const handleLogout = async () => {
 
 :deep(.el-button) {
   border-radius: var(--radius-base);
+}
+
+.room-form {
+  max-width: 520px;
+}
+
+.admin-room-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-base);
+}
+
+.admin-room-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-room-info .room-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-room-info .room-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>

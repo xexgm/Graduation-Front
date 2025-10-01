@@ -11,9 +11,10 @@
         :model="form"
         :rules="rules"
         class="login-form"
+        label-position="top"
         @submit.prevent="handleLogin"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="username" label="用户名">
           <el-input
             v-model="form.username"
             placeholder="请输入用户名"
@@ -26,7 +27,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" label="密码">
           <el-input
             v-model="form.password"
             type="password"
@@ -43,9 +44,6 @@
 
         <el-form-item>
           <div class="login-options">
-            <el-checkbox v-model="form.remember" class="remember-me">
-              记住我
-            </el-checkbox>
             <el-link type="primary" class="forgot-link">
               忘记密码？
             </el-link>
@@ -98,8 +96,7 @@ const loading = ref(false)
 
 const form = reactive<LoginForm>({
   username: '',
-  password: '',
-  remember: false
+  password: ''
 })
 
 const rules: FormRules = {
@@ -122,12 +119,14 @@ const handleLogin = async () => {
 
     loading.value = true
     
-    await userStore.login(form.username, form.password, form.remember)
+    const response = await userStore.login(form)
     
-    await chatStore.initWebSocket(userStore.token!)
-    
-    ElMessage.success('登录成功！')
-    router.push('/chat')
+    if (response.code === 200 && response.data) {
+      await chatStore.initWebSocket(response.data.token, response.data.user.userId)
+      
+      ElMessage.success('登录成功！')
+      router.push('/chat')
+    }
   } catch (error: any) {
     ElMessage.error(error.message || '登录失败，请检查用户名和密码')
   } finally {
@@ -179,28 +178,43 @@ const handleLogin = async () => {
     margin-bottom: 20px;
   }
 
+  .el-form-item__label {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
   .input-glass {
+    /* Wrapper background/border for Element Plus v2 */
+    :deep(.el-input__wrapper) {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: none;
+    }
+
+    /* Actual input text */
     :deep(.el-input__inner) {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      
+      color: var(--text-primary);
+
       &::placeholder {
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--text-placeholder);
       }
-      
-      &:focus {
-        border-color: rgba(255, 255, 255, 0.4);
-        background: rgba(255, 255, 255, 0.15);
-      }
+    }
+
+    /* Focus state */
+    :deep(.el-input__wrapper.is-focus),
+    :deep(.el-input__wrapper:hover) {
+      border-color: var(--primary-color) !important;
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+      background: #ffffff;
     }
 
     :deep(.el-input__prefix) {
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
     }
 
     :deep(.el-input__suffix) {
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
     }
   }
 }

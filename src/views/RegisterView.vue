@@ -11,9 +11,10 @@
         :model="form"
         :rules="rules"
         class="register-form"
+        label-position="top"
         @submit.prevent="handleRegister"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="username" label="用户名">
           <el-input
             v-model="form.username"
             placeholder="请输入用户名"
@@ -26,20 +27,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="email">
-          <el-input
-            v-model="form.email"
-            placeholder="请输入邮箱地址"
-            size="large"
-            class="input-glass"
-          >
-            <template #prefix>
-              <el-icon><Message /></el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-
-        <el-form-item prop="nickname">
+        <el-form-item prop="nickname" label="昵称（可选）">
           <el-input
             v-model="form.nickname"
             placeholder="请输入昵称（可选）"
@@ -52,26 +40,11 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" label="密码">
           <el-input
             v-model="form.password"
             type="password"
             placeholder="请输入密码"
-            size="large"
-            class="input-glass"
-            show-password
-          >
-            <template #prefix>
-              <el-icon><Lock /></el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-
-        <el-form-item prop="confirmPassword">
-          <el-input
-            v-model="form.confirmPassword"
-            type="password"
-            placeholder="请确认密码"
             size="large"
             class="input-glass"
             show-password
@@ -117,36 +90,19 @@ const loading = ref(false)
 
 const form = reactive<RegisterForm>({
   username: '',
-  email: '',
-  nickname: '',
   password: '',
-  confirmPassword: ''
+  nickname: ''
 })
-
-const validatePass = (rule: any, value: any, callback: any) => {
-  if (value === '') {
-    callback(new Error('请确认密码'))
-  } else if (value !== form.password) {
-    callback(new Error('两次输入密码不一致'))
-  } else {
-    callback()
-  }
-}
 
 const rules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
   ],
-  email: [
-    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
-  ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于 6 个字符', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, validator: validatePass, trigger: 'blur' }
+    { min: 8, message: '密码长度不能少于 8 个字符', trigger: 'blur' },
+    { pattern: /^(?=.*[a-zA-Z])(?=.*\d).+$/, message: '密码必须包含数字和字母', trigger: 'blur' }
   ]
 }
 
@@ -214,28 +170,40 @@ const handleRegister = async () => {
     margin-bottom: 20px;
   }
 
+  .el-form-item__label {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
   .input-glass {
+    :deep(.el-input__wrapper) {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: none;
+    }
+
     :deep(.el-input__inner) {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      
+      color: var(--text-primary);
+
       &::placeholder {
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--text-placeholder);
       }
-      
-      &:focus {
-        border-color: rgba(255, 255, 255, 0.4);
-        background: rgba(255, 255, 255, 0.15);
-      }
+    }
+
+    :deep(.el-input__wrapper.is-focus),
+    :deep(.el-input__wrapper:hover) {
+      border-color: var(--primary-color) !important;
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+      background: #ffffff;
     }
 
     :deep(.el-input__prefix) {
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
     }
 
     :deep(.el-input__suffix) {
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
     }
   }
 }

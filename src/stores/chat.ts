@@ -1,15 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref, computed, readonly } from 'vue'
-import type { ChatRoom, Message, User } from '@/types'
-import { chatApi } from '@/api'
+import { ref, computed } from 'vue'
+import type { ChatRoom, Message, User, CompleteMessage } from '@/types'
 import WebSocketManager from '@/websocket'
+import { chatApi } from '@/api'
+import { Rooms as presetRooms, Messages as presetMessages } from '@/utils/mockData'
 
 export const useChatStore = defineStore('chat', () => {
   const rooms = ref<ChatRoom[]>([])
   const currentRoom = ref<ChatRoom | null>(null)
   const messages = ref<Record<string, Message[]>>({})
-  const onlineUsers = ref<Set<string>>(new Set())
-  const typingUsers = ref<Record<string, Set<string>>>({})
+  const onlineUsers = ref<Set<number>>(new Set())
+  const currentRoomId = ref<number | null>(null)
   const wsManager = ref<WebSocketManager | null>(null)
 
   const currentMessages = computed(() => {
@@ -20,106 +21,71 @@ export const useChatStore = defineStore('chat', () => {
     return rooms.value.reduce((total, room) => total + room.unreadCount, 0)
   })
 
-  const initWebSocket = (token: string) => {
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
-    wsManager.value = new WebSocketManager(wsUrl)
-    
-    wsManager.value.on('message:received', (wsMessage) => {
-      const message = wsMessage.data as Message
-      addMessage(message)
-    })
-
-    wsManager.value.on('user:online', ({ userId }) => {
-      onlineUsers.value.add(userId)
-    })
-
-    wsManager.value.on('user:offline', ({ userId }) => {
-      onlineUsers.value.delete(userId)
-    })
-
-    wsManager.value.on('typing:start', ({ userId, roomId }) => {
-      if (!typingUsers.value[roomId]) {
-        typingUsers.value[roomId] = new Set()
-      }
-      typingUsers.value[roomId].add(userId)
-    })
-
-    wsManager.value.on('typing:stop', ({ userId, roomId }) => {
-      if (typingUsers.value[roomId]) {
-        typingUsers.value[roomId].delete(userId)
-      }
-    })
-
-    return wsManager.value.connect(token)
-  }
-
-  const fetchRooms = async () => {
-    try {
-      const response = await chatApi.getRooms()
-      rooms.value = response.data
-      return response.data
-    } catch (error) {
-      throw error
+  // 初始化WebSocket连接（支持本地模拟跳过连接）
+  const initWebSocket = (token: string, userId: number) => {
+    const IS_MOCK_WS = String(import.meta.env.VITE_ENABLE_MOCK_WS) === 'true'
+    if (IS_MOCK_WS) {
+      // 在本地开发模拟模式下，直接resolve，避免依赖真实WS服务
+      return Promise.resolve()
     }
+
+    return new Promise<void>((resolve, reject) => {
+      wsManager.value = new WebSocketManager()
+      
+      // 监听连接事件
+      wsManager.value.on('connected', () => {
+        console.log('WebSocket连接成功')
+        resolve()
+      })
+
+      wsManager.value.on('connection:established', (message: CompleteMessage) => {
+        console.log('连接建立:', message.content)
+      })
+
+      wsManager.value.on('heartbeat:response', (message: CompleteMessage) => {
+        console.log('心跳响应:', message.content)
+      })
+
+      // 监听聊天消息
+      wsManager.value.on('chat:message', (message: CompleteMessage) => {
+        handleChatMessage(message)
+      })
+
+      // 监听聊天室事件
+      wsManager.value.on('room:joined', (message: CompleteMessage) => {
+        console.log('加入聊天室:', message.content)
+      })
+
+      wsManager.value.on('room:left', (message: CompleteMessage) => {
+        console.log('离开聊天室:', message.content)
+      })
+
+      wsManager.value.on('error', (error: Event) => {
+        console.error('WebSocket错误:', error)
+        reject(error)
+      })
+
+      // 开始连接
+      wsManager.value.connect(token, userId).catch(reject)
+    })
   }
 
-  const fetchMessages = async (roomId: string, page = 1) => {
-    try {
-      const response = await chatApi.getMessages(roomId, page)
-      const roomMessages = response.data
-      
-      if (page === 1) {
-        messages.value[roomId] = roomMessages
-      } else {
-        messages.value[roomId] = [...roomMessages, ...(messages.value[roomId] || [])]
-      }
-      
-      return roomMessages
-    } catch (error) {
-      throw error
+  // 处理聊天消息
+  const handleChatMessage = (wsMessage: CompleteMessage) => {
+    const message: Message = {
+      id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
+      senderId: wsMessage.uid.toString(),
+      roomId: wsMessage.toId.toString(),
+      content: wsMessage.content,
+      type: 'text',
+      timestamp: new Date(wsMessage.timeStamp),
+      status: 'delivered'
     }
+
+    addMessage(message)
   }
 
-  const sendMessage = async (content: string, type = 'text') => {
-    if (!currentRoom.value) return
-
-    try {
-      const tempMessage: Message = {
-        id: Date.now().toString(),
-        senderId: 'current-user',
-        receiverId: currentRoom.value.type === 'private' ? currentRoom.value.participants[0]?.id : undefined,
-        roomId: currentRoom.value.id,
-        content,
-        type: type as any,
-        timestamp: new Date(),
-        status: 'sending'
-      }
-
-      addMessage(tempMessage)
-
-      const response = await chatApi.sendMessage(currentRoom.value.id, content, type)
-      const sentMessage = response.data
-      
-      updateMessage(tempMessage.id, sentMessage)
-      
-      if (wsManager.value && wsManager.value.isConnected) {
-        wsManager.value.send({
-          type: 'message',
-          data: sentMessage,
-          timestamp: new Date()
-        })
-      }
-
-      return sentMessage
-    } catch (error) {
-      const errorMessage = messages.value[currentRoom.value.id]?.find(m => m.id === Date.now().toString())
-      if (errorMessage) {
-        errorMessage.status = 'sent'
-      }
-      throw error
-    }
-  }
-
+  // 添加消息到本地存储
   const addMessage = (message: Message) => {
     const roomId = message.roomId
     if (!roomId) return
@@ -132,16 +98,7 @@ export const useChatStore = defineStore('chat', () => {
     updateRoomLastMessage(roomId, message)
   }
 
-  const updateMessage = (tempId: string, newMessage: Message) => {
-    const roomId = newMessage.roomId
-    if (!roomId || !messages.value[roomId]) return
-
-    const index = messages.value[roomId].findIndex(m => m.id === tempId)
-    if (index > -1) {
-      messages.value[roomId][index] = newMessage
-    }
-  }
-
+  // 更新房间最后一条消息
   const updateRoomLastMessage = (roomId: string, message: Message) => {
     const room = rooms.value.find(r => r.id === roomId)
     if (room) {
@@ -154,55 +111,193 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const markAsRead = async (roomId: string) => {
+  // 发送消息
+  const sendMessage = async (content: string, type = 'text') => {
+    if (!currentRoom.value || !wsManager.value || !currentRoomId.value) {
+      throw new Error('聊天室或WebSocket未准备就绪')
+    }
+
     try {
-      await chatApi.markAsRead(roomId)
-      const room = rooms.value.find(r => r.id === roomId)
-      if (room) {
-        room.unreadCount = 0
+      // 创建临时消息
+      const tempMessage: Message = {
+        id: `temp-${Date.now()}`,
+        senderId: wsManager.value.currentUserId.toString(),
+        roomId: currentRoom.value.id,
+        content,
+        type: type as any,
+        timestamp: new Date(),
+        status: 'sending'
       }
-    } catch (error) {
-      console.error('标记已读失败:', error)
-    }
-  }
 
-  const setCurrentRoom = (room: ChatRoom | null) => {
-    currentRoom.value = room
-    if (room) {
-      markAsRead(room.id)
-    }
-  }
+      // 添加到本地消息列表
+      addMessage(tempMessage)
 
-  const createRoom = async (userIds: string[], name?: string) => {
-    try {
-      const response = await chatApi.createRoom(userIds, name)
-      const newRoom = response.data
-      rooms.value.unshift(newRoom)
-      return newRoom
+      // 通过WebSocket发送消息
+      wsManager.value.sendChatMessage(currentRoomId.value, content)
+
+      // 更新消息状态为已发送
+      updateMessageStatus(tempMessage.id, 'sent')
+
+      return tempMessage
     } catch (error) {
+      console.error('发送消息失败:', error)
       throw error
     }
   }
 
-  const sendTyping = (isTyping: boolean) => {
-    if (!currentRoom.value || !wsManager.value?.isConnected) return
-
-    wsManager.value.send({
-      type: 'typing',
-      data: {
-        userId: 'current-user',
-        roomId: currentRoom.value.id,
-        isTyping
-      },
-      timestamp: new Date()
-    })
+  // 更新消息状态
+  const updateMessageStatus = (messageId: string, status: Message['status']) => {
+    for (const roomMessages of Object.values(messages.value)) {
+      const message = roomMessages.find(m => m.id === messageId)
+      if (message) {
+        message.status = status
+        break
+      }
+    }
   }
 
+  // 加入聊天室
+  const joinRoom = (roomId: number) => {
+    if (wsManager.value) {
+      currentRoomId.value = roomId
+      wsManager.value.joinChatRoom(roomId)
+    }
+  }
+
+  // 离开聊天室
+  const leaveRoom = (roomId: number) => {
+    if (wsManager.value) {
+      wsManager.value.leaveChatRoom(roomId)
+      if (currentRoomId.value === roomId) {
+        currentRoomId.value = null
+      }
+    }
+  }
+
+  // 设置当前聊天室
+  const setCurrentRoom = (room: ChatRoom | null) => {
+    // 如果有当前聊天室，先离开
+    if (currentRoomId.value) {
+      leaveRoom(currentRoomId.value)
+    }
+
+    currentRoom.value = room
+    
+    if (room) {
+      const roomIdNumber = parseInt(room.id)
+      joinRoom(roomIdNumber)
+      markAsRead(room.id)
+    }
+  }
+
+  // 标记消息为已读
+  const markAsRead = (roomId: string) => {
+    const room = rooms.value.find(r => r.id === roomId)
+    if (room) {
+      room.unreadCount = 0
+    }
+  }
+
+  // 获取聊天室列表（支持本地模拟或后端接口）
+  const fetchRooms = async () => {
+    const IS_MOCK_DATA = String(import.meta.env.VITE_ENABLE_MOCK_DATA) === 'true'
+    if (IS_MOCK_DATA) {
+      // 深拷贝，避免直接修改导入的常量
+      const cloned: ChatRoom[] = JSON.parse(JSON.stringify(presetRooms))
+      rooms.value = cloned
+
+      // 简单模拟在线状态：将第一个房间的首个参与者标记在线
+      if (cloned[0]?.participants[0]?.userId) {
+        onlineUsers.value.add(cloned[0].participants[0].userId)
+      }
+      return cloned
+    }
+
+    // 非模拟：从后端拉取
+    const resp = await chatApi.listChatRooms()
+    if (resp.code === 200 && Array.isArray(resp.data)) {
+      const mapped = resp.data.map((r) => ({
+        id: String(r.roomId),
+        name: r.roomName,
+        type: (r.roomType === 'PRIVATE_ROOM' ? 'private' : 'group') as 'private' | 'group',
+        participants: [],
+        unreadCount: 0,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(r.roomName || 'room')}`,
+        createdAt: new Date(r.createTimeStamp),
+        updatedAt: new Date(r.createTimeStamp)
+      })) as ChatRoom[]
+      rooms.value = mapped
+      return mapped
+    }
+    rooms.value = []
+    return []
+  }
+
+  // 模拟获取消息历史（实际应该从API获取）
+  const fetchMessages = async (roomId: string, page = 1) => {
+    const IS_MOCK_DATA = String(import.meta.env.VITE_ENABLE_MOCK_DATA) === 'true'
+    if (IS_MOCK_DATA) {
+      const preset = presetMessages[roomId as keyof typeof presetMessages] || []
+      // 覆盖为预置消息副本
+      messages.value[roomId] = JSON.parse(JSON.stringify(preset))
+      return messages.value[roomId]
+    }
+
+    // 非模拟：确保有数组
+    if (!messages.value[roomId]) messages.value[roomId] = []
+    return messages.value[roomId]
+  }
+
+  // 断开WebSocket连接
   const disconnect = () => {
     if (wsManager.value) {
       wsManager.value.disconnect()
       wsManager.value = null
     }
+    currentRoomId.value = null
+  }
+
+  // 创建聊天室（管理员）
+  const createRoom = async (roomName: string, description?: string, roomType?: 'PUBLIC_ROOM' | 'PRIVATE_ROOM') => {
+    const resp = await chatApi.createChatRoom({ roomName, description, roomType })
+    if (resp.code === 200 && resp.data) {
+      const r = resp.data
+      const newRoom: ChatRoom = {
+        id: String(r.roomId),
+        name: r.roomName,
+        type: 'group',
+        participants: [],
+        unreadCount: 0,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(r.roomName || 'room')}`,
+        createdAt: new Date(r.createTimeStamp),
+        updatedAt: new Date(r.createTimeStamp)
+      }
+      rooms.value = [newRoom, ...rooms.value]
+      return newRoom
+    }
+    throw new Error(resp.message || '创建聊天室失败')
+  }
+
+  // 下线聊天室（管理员）
+  const offlineRoom = async (roomId: number) => {
+    const resp = await chatApi.offlineChatRoom(roomId)
+    if (resp.code !== 200) {
+      throw new Error(resp.message || '下线失败')
+    }
+  }
+
+  // 删除聊天室（管理员）
+  const deleteRoom = async (roomId: number) => {
+    const resp = await chatApi.deleteChatRoom(roomId)
+    if (resp.code === 200) {
+      rooms.value = rooms.value.filter(r => r.id !== String(roomId))
+      if (currentRoom.value?.id === String(roomId)) {
+        currentRoom.value = null
+        currentRoomId.value = null
+      }
+      return
+    }
+    throw new Error(resp.message || '删除失败')
   }
 
   return {
@@ -210,16 +305,18 @@ export const useChatStore = defineStore('chat', () => {
     currentRoom,
     currentMessages,
     onlineUsers,
-    typingUsers,
     unreadCount,
     initWebSocket,
     fetchRooms,
     fetchMessages,
     sendMessage,
     setCurrentRoom,
-    createRoom,
     markAsRead,
-    sendTyping,
+    joinRoom,
+    leaveRoom,
     disconnect
+    ,createRoom
+    ,offlineRoom
+    ,deleteRoom
   }
 })

@@ -43,7 +43,7 @@ const chatStore = useChatStore()
 const roomName = computed(() => {
   if (props.room.name) return props.room.name
   if (props.room.type === 'private') {
-    const otherUser = props.room.participants.find(p => p.id !== userStore.user?.id)
+    const otherUser = props.room.participants.find(p => p.userId !== userStore.user?.userId)
     return otherUser?.nickname || otherUser?.username || '未知用户'
   }
   return '群聊'
@@ -51,8 +51,8 @@ const roomName = computed(() => {
 
 const isOnline = computed(() => {
   if (props.room.type === 'private') {
-    const otherUser = props.room.participants.find(p => p.id !== userStore.user?.id)
-    return otherUser ? chatStore.onlineUsers.has(otherUser.id) : false
+    const otherUser = props.room.participants.find(p => p.userId !== userStore.user?.userId)
+    return otherUser ? chatStore.onlineUsers.has(otherUser.userId) : false
   }
   return false
 })

@@ -106,15 +106,13 @@ const userStore = useUserStore()
 const chatStore = useChatStore()
 const messageListRef = ref<HTMLElement>()
 
-const currentUserId = computed(() => userStore.user?.id || '')
+const currentUserId = computed(() => userStore.user?.userId || '')
 
 const messages = computed(() => chatStore.currentMessages)
 
 const typingUsers = computed(() => {
-  const roomTyping = chatStore.typingUsers[props.room.id]
-  if (!roomTyping) return []
-  
-  return Array.from(roomTyping).filter(userId => userId !== currentUserId.value)
+  // 暂时移除 typingUsers 功能，等待后端实现
+  return []
 })
 
 const groupedMessages = computed(() => {
@@ -140,13 +138,13 @@ const groupedMessages = computed(() => {
 })
 
 const getSenderName = (senderId: string) => {
-  const sender = props.room.participants.find(p => p.id === senderId)
+  const sender = props.room.participants.find(p => p.userId.toString() === senderId)
   return sender?.nickname || sender?.username || '未知用户'
 }
 
 const getSenderAvatar = (senderId: string) => {
-  const sender = props.room.participants.find(p => p.id === senderId)
-  return sender?.avatar
+  const sender = props.room.participants.find(p => p.userId.toString() === senderId)
+  return sender?.avatarUrl
 }
 
 const formatTime = (timestamp: Date) => {
