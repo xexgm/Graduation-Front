@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, LoginForm, RegisterForm } from '@/types'
 import { authApi, apiUtils } from '@/api'
+import { useChatStore } from './chat'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
@@ -43,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
 
   // 登出
   const logout = async () => {
+    const chatStore = useChatStore()
     try {
       if (user.value && token.value) {
         await authApi.logout({
@@ -56,6 +58,7 @@ export const useUserStore = defineStore('user', () => {
       user.value = null
       token.value = null
       apiUtils.clearToken()
+      chatStore.disconnectWebSocket()
     }
   }
 

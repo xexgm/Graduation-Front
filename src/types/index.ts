@@ -57,14 +57,14 @@ export interface TokenRequest {
 
 // WebSocket消息类型
 export interface CompleteMessage {
-  appId: number        // 业务线ID: 1=连接管理, 2=聊天室
+  appId: number        // 业务线ID: 0=Link(基础连接), 1=ChatRoom(聊天室)
   uid: number          // 用户ID
   token: string        // 用户Token
   compression?: number // 是否压缩
   encryption?: number  // 是否加密
   messageType: number  // 消息类型
-  toId: number         // 接收方ID (聊天室ID或用户ID)
-  content: string      // 消息内容
+  toId?: number        // 接收方ID (聊天室ID或用户ID)
+  content: string | null // 消息内容
   timeStamp: number    // 发送时间戳
 }
 

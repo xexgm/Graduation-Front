@@ -122,7 +122,7 @@ const handleLogin = async () => {
     const response = await userStore.login(form)
     
     if (response.code === 200 && response.data) {
-      await chatStore.initWebSocket(response.data.token, response.data.user.userId)
+      await chatStore.initWebSocket()
       
       ElMessage.success('登录成功！')
       router.push('/chat')

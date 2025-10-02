@@ -210,9 +210,9 @@ const formatTime = (timestamp?: Date) => {
 
 const selectRoom = async (room: ChatRoom) => {
   try {
-    chatStore.setCurrentRoom(room)
+    chatStore.setCurrentRoom(room.id)
     await chatStore.fetchMessages(room.id)
-  } catch (error: any) {
+  } catch (error) {
     ElMessage.error('加载消息失败')
   }
 }
