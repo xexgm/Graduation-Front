@@ -21,6 +21,7 @@
     <div class="chat-actions">
       <el-button type="text" :icon="VideoCamera" />
       <el-button type="text" :icon="Phone" />
+      <el-button type="text" @click="exitRoom">退出</el-button>
       <el-button type="text" :icon="MoreFilled" />
     </div>
   </div>
@@ -28,6 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { VideoCamera, Phone, MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
@@ -39,6 +41,7 @@ const props = defineProps<{
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const router = useRouter()
 
 const roomName = computed(() => {
   if (props.room.name) return props.room.name
@@ -49,13 +52,12 @@ const roomName = computed(() => {
   return '群聊'
 })
 
-const isOnline = computed(() => {
-  if (props.room.type === 'private') {
-    const otherUser = props.room.participants.find(p => p.userId !== userStore.user?.userId)
-    return otherUser ? chatStore.onlineUsers.has(otherUser.userId) : false
-  }
-  return false
-})
+const isOnline = computed(() => false)
+
+const exitRoom = () => {
+  chatStore.leaveCurrentRoom()
+  router.push('/lobby')
+}
 </script>
 
 <style scoped lang="scss">

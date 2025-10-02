@@ -27,6 +27,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/lobby',
+      name: 'Lobby',
+      component: () => import('@/views/LobbyView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/settings',
       name: 'Settings',
       component: () => import('@/views/SettingsView.vue'),
@@ -42,7 +48,7 @@ router.beforeEach((to, from, next) => {
   if (requiresAuth && !userStore.isLoggedIn) {
     next('/login')
   } else if (!requiresAuth && userStore.isLoggedIn && to.path === '/login') {
-    next('/chat')
+    next('/lobby')
   } else {
     next()
   }

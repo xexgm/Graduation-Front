@@ -106,7 +106,7 @@ const userStore = useUserStore()
 const chatStore = useChatStore()
 const messageListRef = ref<HTMLElement>()
 
-const currentUserId = computed(() => userStore.user?.userId || '')
+const currentUserId = computed(() => String(userStore.user?.userId || ''))
 
 const messages = computed(() => chatStore.currentMessages)
 
@@ -138,11 +138,17 @@ const groupedMessages = computed(() => {
 })
 
 const getSenderName = (senderId: string) => {
+  const id = parseInt(senderId)
+  const user = chatStore.getUserById?.(id)
+  if (user) return user.nickname || user.username
   const sender = props.room.participants.find(p => p.userId.toString() === senderId)
-  return sender?.nickname || sender?.username || '未知用户'
+  return sender?.nickname || sender?.username || `用户${senderId}`
 }
 
 const getSenderAvatar = (senderId: string) => {
+  const id = parseInt(senderId)
+  const user = chatStore.getUserById?.(id)
+  if (user) return user.avatarUrl
   const sender = props.room.participants.find(p => p.userId.toString() === senderId)
   return sender?.avatarUrl
 }
@@ -198,6 +204,16 @@ watch(() => props.room.id, () => {
 onMounted(() => {
   scrollToBottom()
 })
+
+// 确保消息涉及的用户资料已加载（用于显示用户名/头像）
+watch(messages, (list) => {
+  const ids = new Set<number>()
+  list.forEach(m => {
+    const id = parseInt(m.senderId as string)
+    if (!Number.isNaN(id)) ids.add(id)
+  })
+  ids.forEach(id => chatStore.ensureUserLoaded?.(id))
+}, { deep: true, immediate: true })
 </script>
 
 <style scoped lang="scss">

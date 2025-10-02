@@ -125,7 +125,7 @@ const handleLogin = async () => {
       await chatStore.initWebSocket()
       
       ElMessage.success('登录成功！')
-      router.push('/chat')
+      router.push('/lobby')
     }
   } catch (error: any) {
     ElMessage.error(error.message || '登录失败，请检查用户名和密码')

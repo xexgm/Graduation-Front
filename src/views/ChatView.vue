@@ -187,9 +187,7 @@ const getRoomName = (room: ChatRoom) => {
   return '群聊'
 }
 
-const isUserOnline = (userId: string) => {
-  return chatStore.onlineUsers.has(parseInt(userId))
-}
+const isUserOnline = (_userId: string) => false
 
 const formatTime = (timestamp?: Date) => {
   if (!timestamp) return ''
@@ -231,7 +229,7 @@ const handleCreateRoom = async () => {
     const room = await chatStore.createRoom(createForm.roomName, createForm.description, createForm.roomType)
     ElMessage.success('创建成功')
     // 可选：自动选中新建房间
-    chatStore.setCurrentRoom(room)
+    chatStore.setCurrentRoom(room.id)
     showCreateDialog.value = false
     createForm.roomName = ''
     createForm.description = ''

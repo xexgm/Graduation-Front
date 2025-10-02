@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
-import type { ChatRoom, Message, CompleteMessage, BackendChatRoom } from '@/types'
-import { chatApi } from '@/api'
+import type { ChatRoom, Message, CompleteMessage, BackendChatRoom, User } from '@/types'
+import { chatApi, authApi } from '@/api'
 
 let isWebSocketInitialized = false
 
@@ -11,13 +11,17 @@ export const useChatStore = defineStore('chat', () => {
   const rooms = ref<ChatRoom[]>([])
   const currentRoomId = ref<number | null>(null)
   const messages = ref<Record<string, Message[]>>({})
+  const userDirectory = ref<Record<number, User>>({})
 
   const currentRoom = computed(() => rooms.value.find(r => r.id === String(currentRoomId.value)) || null)
   const currentMessages = computed(() => (currentRoomId.value ? messages.value[currentRoomId.value] || [] : []))
   const unreadCount = computed(() => rooms.value.reduce((total, room) => total + room.unreadCount, 0))
 
-  function handleIncomingChatMessage(wsMessage: CompleteMessage) {
+  async function handleIncomingChatMessage(wsMessage: CompleteMessage) {
     if (wsMessage.content === null) return
+
+    // 异步确保发送者资料已缓存，便于前端显示用户名/头像
+    ensureUserLoaded(wsMessage.uid)
 
     const message: Message = {
       id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
@@ -97,6 +101,13 @@ export const useChatStore = defineStore('chat', () => {
 
   function setCurrentRoom(roomId: string | null) {
     if (roomId === null) {
+      // 退出当前聊天室
+      const userStore = useUserStore()
+      const token = userStore.token
+      const user = userStore.user
+      if (currentRoomId.value !== null && token && user) {
+        webSocketService.exitChatRoom(user.userId, token, currentRoomId.value)
+      }
       currentRoomId.value = null
       return
     }
@@ -118,6 +129,10 @@ export const useChatStore = defineStore('chat', () => {
       webSocketService.enterChatRoom(user.userId, token, Number(roomId))
       room.unreadCount = 0 // Mark as read
     }
+  }
+
+  function leaveCurrentRoom() {
+    setCurrentRoom(null)
   }
 
   async function sendMessage(content: string) {
@@ -169,6 +184,23 @@ export const useChatStore = defineStore('chat', () => {
       messages.value[roomId] = []
     }
     return messages.value[roomId]
+  }
+
+  // 用户信息缓存与获取
+  function getUserById(userId: number): User | undefined {
+    return userDirectory.value[userId]
+  }
+
+  async function ensureUserLoaded(userId: number) {
+    if (!userId || userDirectory.value[userId]) return
+    try {
+      const resp = await authApi.getUserInfo(userId)
+      if (resp.code === 200 && resp.data) {
+        userDirectory.value[userId] = resp.data
+      }
+    } catch (e) {
+      console.error('ensureUserLoaded failed:', e)
+    }
   }
 
   async function createRoom(roomName: string, description?: string, roomType?: 'PUBLIC_ROOM' | 'PRIVATE_ROOM') {
@@ -231,10 +263,15 @@ export const useChatStore = defineStore('chat', () => {
     disconnectWebSocket,
     fetchRooms,
     setCurrentRoom,
+    leaveCurrentRoom,
     sendMessage,
     createRoom,
     deleteRoom,
     offlineRoom,
-    fetchMessages
+    fetchMessages,
+    // 用户目录
+    getUserById,
+    ensureUserLoaded,
+    userDirectory
   }
 })
