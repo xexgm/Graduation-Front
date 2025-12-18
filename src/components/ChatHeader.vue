@@ -7,13 +7,7 @@
       <div class="chat-details">
         <div class="chat-name">{{ roomName }}</div>
         <div class="chat-status">
-          <template v-if="room.type === 'private'">
-            <span v-if="isOnline" class="online">在线</span>
-            <span v-else class="offline">离线</span>
-          </template>
-          <template v-else>
-            {{ room.participants.length }} 人
-          </template>
+          在线 {{ onlineCount }} 人
         </div>
       </div>
     </div>
@@ -52,7 +46,10 @@ const roomName = computed(() => {
   return '群聊'
 })
 
-const isOnline = computed(() => false)
+const onlineCount = computed(() => {
+  const fromStore = chatStore.onlineCountByRoom[String(props.room.id)]
+  return typeof fromStore === 'number' ? fromStore : (props.room.onlineCount || 0)
+})
 
 const exitRoom = () => {
   chatStore.leaveCurrentRoom()

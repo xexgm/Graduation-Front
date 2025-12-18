@@ -204,6 +204,34 @@ curl -X GET 'http://localhost:8080/chatroom/list' \
 
 ---
 
+## 5. 获取聊天室人数（在线）
+GET `/chatroom/{roomId}/count`
+
+- 权限：需登录（任意已登录用户可访问）
+- Header：`Authorization: Bearer {token}`
+- Path 参数：`roomId`（number）
+- 返回：`ApiResponse<number>`（当前实例内存中该聊天室在线人数）
+
+说明
+- 人数统计来自 Netty 服务器的内存态管理（UserChatRoomManager），应用重启会清空；多实例部署时为“单实例在线人数”。
+
+示例
+```bash
+curl -X GET 'http://localhost:8080/chatroom/123/count' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+
+成功响应 200
+```json
+{ "code": 200, "message": "获取成功", "data": 5, "timestamp": 1738412345678 }
+```
+
+失败响应
+- 401 未登录/Token 无效
+- 400 参数错误（roomId 为空）
+
+---
+
 ## 错误码说明
 - 200：成功
 - 400：参数错误/业务失败（见 message）

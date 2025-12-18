@@ -198,7 +198,11 @@ export const chatApi = {
 
   // 聊天室：删除（管理员，软删）
   deleteChatRoom: (roomId: number): Promise<ApiResponse<null>> =>
-    api.delete(`/chatroom/${roomId}`).then(res => res.data)
+    api.delete(`/chatroom/${roomId}`).then(res => res.data),
+
+  // 聊天室：获取在线人数
+  getRoomOnlineCount: (roomId: number): Promise<ApiResponse<number>> =>
+    api.get(`/chatroom/${roomId}/count`).then(res => res.data)
 }
 
 // 工具方法

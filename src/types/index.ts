@@ -90,6 +90,7 @@ export interface ChatRoom {
   avatar?: string
   createdAt: Date
   updatedAt: Date
+  onlineCount?: number
 }
 
 // 后端聊天室类型（文档字段）

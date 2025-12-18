@@ -12,6 +12,8 @@ export const useChatStore = defineStore('chat', () => {
   const currentRoomId = ref<number | null>(null)
   const messages = ref<Record<string, Message[]>>({})
   const userDirectory = ref<Record<number, User>>({})
+  const onlineCountByRoom = ref<Record<string, number>>({})
+  let onlineCountTimer: number | null = null
 
   const currentRoom = computed(() => rooms.value.find(r => r.id === String(currentRoomId.value)) || null)
   const currentMessages = computed(() => (currentRoomId.value ? messages.value[currentRoomId.value] || [] : []))
@@ -109,6 +111,11 @@ export const useChatStore = defineStore('chat', () => {
         webSocketService.exitChatRoom(user.userId, token, currentRoomId.value)
       }
       currentRoomId.value = null
+      // 停止在线人数轮询
+      if (onlineCountTimer) {
+        clearInterval(onlineCountTimer)
+        onlineCountTimer = null
+      }
       return
     }
 
@@ -128,6 +135,17 @@ export const useChatStore = defineStore('chat', () => {
       currentRoomId.value = Number(roomId)
       webSocketService.enterChatRoom(user.userId, token, Number(roomId))
       room.unreadCount = 0 // Mark as read
+      
+      // 获取一次当前聊天室在线人数并启动轮询
+      fetchRoomOnlineCount(Number(roomId)).catch(() => {})
+      if (onlineCountTimer) {
+        clearInterval(onlineCountTimer)
+      }
+      onlineCountTimer = window.setInterval(() => {
+        if (currentRoomId.value !== null) {
+          fetchRoomOnlineCount(currentRoomId.value as number).catch(() => {})
+        }
+      }, 10000)
     }
   }
 
@@ -184,6 +202,19 @@ export const useChatStore = defineStore('chat', () => {
       messages.value[roomId] = []
     }
     return messages.value[roomId]
+  }
+
+  async function fetchRoomOnlineCount(roomId: number) {
+    try {
+      const resp = await chatApi.getRoomOnlineCount(roomId)
+      if (resp.code === 200) {
+        onlineCountByRoom.value[String(roomId)] = resp.data || 0
+        const room = rooms.value.find(r => r.id === String(roomId))
+        if (room) room.onlineCount = onlineCountByRoom.value[String(roomId)]
+      }
+    } catch (error) {
+      console.error('Failed to fetch room online count:', error)
+    }
   }
 
   // 用户信息缓存与获取
@@ -263,6 +294,7 @@ export const useChatStore = defineStore('chat', () => {
     disconnectWebSocket,
     fetchRooms,
     setCurrentRoom,
+    fetchRoomOnlineCount,
     leaveCurrentRoom,
     sendMessage,
     createRoom,
@@ -272,6 +304,7 @@ export const useChatStore = defineStore('chat', () => {
     // 用户目录
     getUserById,
     ensureUserLoaded,
-    userDirectory
+    userDirectory,
+    onlineCountByRoom
   }
 })
