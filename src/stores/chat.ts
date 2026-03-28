@@ -22,6 +22,14 @@ export const useChatStore = defineStore('chat', () => {
   async function handleIncomingChatMessage(wsMessage: CompleteMessage) {
     if (wsMessage.content === null) return
 
+    const userStore = useUserStore()
+    // [Bug Fix] 防止出现两条消息: 如果这条消息是当前用户自己发的，并且我们在 sendMessage 时已经通过“乐观更新(Optimistic update)”添加了，这里就不需要再处理它了。
+    // 虽然文档中说明后端排除了自己，但如果在某些特定情况下或者后续有回显的可能，做一次防重判断也是极好的。
+    if (userStore.user && String(wsMessage.uid) === String(userStore.user.userId)) {
+      console.log('====== [WebSocket] 过滤掉自己发送的回显消息 ======')
+      return
+    }
+
     // 异步确保发送者资料已缓存，便于前端显示用户名/头像
     ensureUserLoaded(wsMessage.uid)
 
@@ -54,21 +62,33 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function initWebSocket() {
-    if (isWebSocketInitialized) return
+    if (isWebSocketInitialized) {
+      console.log('WebSocket is already initialized, skipping.')
+      return
+    }
 
     const userStore = useUserStore()
     const token = userStore.token
     const user = userStore.user
 
-    if (!token || !user) {
-      console.error('Cannot initialize WebSocket: user or token is missing.')
+    console.log('initWebSocket called. Token:', token ? 'exists' : 'missing', 'User:', user)
+
+    if (!token || !user || !user.userId) {
+      console.error('Cannot initialize WebSocket: user or token is missing or userId is not found.', { token: !!token, user })
       return
     }
 
     webSocketService.on('message:chat', handleIncomingChatMessage)
-    await webSocketService.connect(token, user.userId)
-
-    isWebSocketInitialized = true
+    
+    try {
+      console.log('Starting webSocketService.connect...')
+      await webSocketService.connect(token, user.userId)
+      console.log('webSocketService.connect resolved.')
+      isWebSocketInitialized = true
+    } catch (error) {
+      console.error('webSocketService.connect failed:', error)
+      throw error
+    }
   }
 
   function disconnectWebSocket() {

@@ -265,7 +265,7 @@ const handleLogout = async () => {
     )
     
     await userStore.logout()
-    chatStore.disconnect()
+    chatStore.disconnectWebSocket()
     ElMessage.success('已退出登录')
     router.push('/login')
   } catch {

@@ -63,8 +63,8 @@ export interface CompleteMessage {
   compression?: number // 是否压缩
   encryption?: number  // 是否加密
   messageType: number  // 消息类型
-  toId?: number        // 接收方ID (聊天室ID或用户ID)
-  content: string | null // 消息内容
+  toId: number         // 接收方ID (聊天室ID或用户ID)
+  content: string      // 消息内容
   timeStamp: number    // 发送时间戳
 }
 

@@ -13,6 +13,8 @@ export type WebSocketEvents = {
 class WebSocketService {
   private ws: WebSocket | null = null
   private baseURL: string
+  private token: string = ''
+  private uid: number = 0
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectInterval = 3000
@@ -26,18 +28,32 @@ class WebSocketService {
   }
 
   public connect(token: string, uid: number): Promise<void> {
+    this.token = token
+    this.uid = uid
     return new Promise((resolve, reject) => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        console.log('WebSocket is already connected.')
+      if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+        console.log('====== [WebSocket] 已经连接或正在连接，跳过实例化 ======')
         resolve()
         return
       }
 
-      const url = `${this.baseURL}?token=${token}`
-      this.ws = new WebSocket(url)
+      const url = `${this.baseURL}?token=${encodeURIComponent(token)}`
+      console.log('====== [WebSocket] 准备实例化 WebSocket ======')
+      console.log('====== [WebSocket] 用户ID (UID):', uid)
+      console.log('====== [WebSocket] 连接地址 URL:', url)
+      
+      try {
+        this.ws = new WebSocket(url)
+        console.log('====== [WebSocket] new WebSocket() 实例化执行完毕，等待 onopen 回调 ======')
+      } catch (err) {
+        console.error('====== [WebSocket] 实例化失败，可能是 URL 格式错误 ======:', err)
+        reject(err)
+        return
+      }
 
-      this.ws.onopen = () => {
-        console.log('WebSocket connection established.')
+      this.ws.onopen = (event) => {
+        console.log('====== [WebSocket] 物理连接已建立 (onopen 触发) ======', event)
+        console.log('====== [WebSocket] 立即发送 messageType=0 的逻辑建连消息 ======')
         this.reconnectAttempts = 0
         this.sendLogicalConnection(uid, token)
         this.startHeartbeat(uid, token)
@@ -47,7 +63,7 @@ class WebSocketService {
 
       this.ws.onmessage = (event) => {
         const message: CompleteMessage = JSON.parse(event.data)
-        console.log('Received message:', message)
+        console.log('====== [WebSocket] 收到服务器消息 (onmessage) ======', message)
         this.emitter.emit('message:received', message)
 
         if (message.appId === 1 && message.messageType === 1) {
@@ -56,14 +72,14 @@ class WebSocketService {
       }
 
       this.ws.onclose = (event) => {
-        console.log('WebSocket connection closed.', event.reason)
+        console.warn('====== [WebSocket] 连接断开 (onclose 触发) ======', 'code:', event.code, 'reason:', event.reason)
         this.stopHeartbeat()
         this.emitter.emit('disconnected', event)
         this.reconnect(token, uid)
       }
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
+        console.error('====== [WebSocket] 连接发生错误 (onerror 触发) ======', error)
         this.emitter.emit('error', error as Event)
         reject(error)
       }
@@ -84,9 +100,10 @@ class WebSocketService {
 
   private send(message: Omit<CompleteMessage, 'compression' | 'encryption'>): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('Sending WebSocket message:', message)
       this.ws.send(JSON.stringify(message))
     } else {
-      console.error('WebSocket is not connected. Message not sent.')
+      console.error('WebSocket is not connected. Message not sent.', message)
     }
   }
 
@@ -97,8 +114,9 @@ class WebSocketService {
       messageType: 0,
       uid,
       token,
+      toId: 0,
       timeStamp: Date.now(),
-      content: null
+      content: "请求建立连接"
     })
   }
 
@@ -110,6 +128,7 @@ class WebSocketService {
         messageType: 2,
         uid,
         token,
+        toId: 0,
         content: 'ping',
         timeStamp: Date.now()
       })
@@ -132,7 +151,7 @@ class WebSocketService {
       token,
       toId: roomId,
       timeStamp: Date.now(),
-      content: null
+      content: ""
     })
   }
 
@@ -158,13 +177,23 @@ class WebSocketService {
       token,
       toId: roomId,
       timeStamp: Date.now(),
-      content: null
+      content: ""
     })
   }
 
   public disconnect(): void {
     this.stopHeartbeat()
-    if (this.ws) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // 在关闭物理连接前，主动发送注销连接的包
+      this.send({
+        appId: 0,
+        messageType: 1,
+        uid: this.uid,
+        token: this.token,
+        toId: 0,
+        content: '请求断开连接',
+        timeStamp: Date.now()
+      })
       this.ws.close()
     }
   }
@@ -183,3 +212,9 @@ class WebSocketService {
 // 创建并导出一个单例
 const wsURL = import.meta.env.VITE_WS_URL || 'ws://localhost:9999/ws'
 export const webSocketService = new WebSocketService(wsURL)
+
+// 暴露到全局供开发模式下排查问题
+if (typeof window !== 'undefined') {
+  ;(window as any).__webSocketService = webSocketService
+  console.log('====== [WebSocket] 服务已挂载至全局 window.__webSocketService ======')
+}

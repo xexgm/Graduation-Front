@@ -120,14 +120,27 @@ const handleLogin = async () => {
     loading.value = true
     
     const response = await userStore.login(form)
+    console.log('Login API response:', response)
     
     if (response.code === 200 && response.data) {
-      await chatStore.initWebSocket()
+      console.log('Login successful, initializing WebSocket...')
+      try {
+        await chatStore.initWebSocket()
+        console.log('WebSocket initialized successfully.')
+      } catch (wsError) {
+        console.error('WebSocket initialization failed:', wsError)
+        // 即使 WebSocket 连接失败，也许我们也应该允许用户登录并跳转
+      }
       
       ElMessage.success('登录成功！')
+      console.log('Pushing router to /lobby')
       router.push('/lobby')
+    } else {
+      console.warn('Login response code is not 200 or missing data', response)
+      throw new Error(response.message || '登录失败')
     }
   } catch (error: any) {
+    console.error('Login process error:', error)
     ElMessage.error(error.message || '登录失败，请检查用户名和密码')
   } finally {
     loading.value = false

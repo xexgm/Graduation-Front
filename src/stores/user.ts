@@ -10,7 +10,6 @@ export const useUserStore = defineStore('user', () => {
 
   const isLoggedIn = computed(() => !!token.value && !!user.value)
 
-  // 登录
   const login = async (loginData: LoginForm) => {
     try {
       const response = await authApi.login(loginData)
