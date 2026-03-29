@@ -12,6 +12,13 @@ import type {
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
+const TOKEN_STORAGE_KEY = 'auth_token'
+let runtimeToken = ''
+
+if (typeof window !== 'undefined') {
+  runtimeToken = sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY) || ''
+}
+
 // 创建 axios 实例
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -27,7 +34,7 @@ const IS_MOCK_AUTH = String(import.meta.env.VITE_ENABLE_MOCK_AUTH) === 'true'
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token')
+    const token = runtimeToken || sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -46,7 +53,7 @@ api.interceptors.response.use(
       ElMessage.error(message || '请求失败')
       if (code === 401) {
         // Token 无效，清除本地存储并跳转到登录页
-        localStorage.removeItem('auth_token')
+        apiUtils.clearToken()
         window.location.href = '/login'
       }
       return Promise.reject(new Error(message))
@@ -55,7 +62,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token')
+      apiUtils.clearToken()
       window.location.href = '/login'
     } else {
       ElMessage.error(error.message || '网络错误')
@@ -114,7 +121,7 @@ export const authApi = {
         },
         timestamp: now
       }
-      localStorage.setItem('auth_token', mockToken)
+      apiUtils.setToken(mockToken)
       localStorage.setItem('mock_user', JSON.stringify(mockUser))
       return Promise.resolve(resp)
     }
@@ -122,8 +129,7 @@ export const authApi = {
     return api.post('/user/login', data).then(res => {
       const response = res.data
       if (response.code === 200 && response.data?.token) {
-        // 保存 Token 到 localStorage
-        localStorage.setItem('auth_token', response.data.token)
+        apiUtils.setToken(response.data.token)
       }
       return response
     })
@@ -132,7 +138,7 @@ export const authApi = {
   // 用户登出
   logout: (data: LogoutRequest): Promise<ApiResponse<string>> =>
     api.post('/user/logout', data).then(res => {
-      localStorage.removeItem('auth_token')
+      apiUtils.clearToken()
       return res.data
     }),
     
@@ -205,26 +211,60 @@ export const chatApi = {
     api.get(`/chatroom/${roomId}/count`).then(res => res.data)
 }
 
+// 好友与私聊API
+export const friendApi = {
+  // 添加好友
+  addFriend: (friendId: number, userId: number): Promise<ApiResponse<null>> => 
+    api.post('/friend/add', { userId, friendId }).then(res => res.data),
+
+  // 删除好友
+  removeFriend: (friendId: number, userId: number): Promise<ApiResponse<null>> => 
+    api.delete(`/friend/remove/${friendId}?userId=${userId}`).then(res => res.data),
+
+  // 获取好友列表
+  getFriendList: (userId: number): Promise<ApiResponse<import('@/types').Friend[]>> => 
+    api.get(`/friend/list?userId=${userId}`).then(res => res.data)
+}
+
+export const messageApi = {
+  // 获取私聊历史记录
+  getPrivateHistory: (userId: number, friendId: number, current = 1, size = 20): Promise<ApiResponse<import('@/types').PrivateMessageHistoryResponse['data']>> => {
+    const normalizedFriendId = Number(friendId)
+    if (!Number.isFinite(normalizedFriendId) || normalizedFriendId <= 0) {
+      return Promise.reject(new Error('friendId is invalid when fetching private history'))
+    }
+    return api.get(`/message/private/history?userId=${userId}&friendId=${normalizedFriendId}&current=${current}&size=${size}`).then(res => res.data)
+  },
+
+  // 获取群聊历史记录
+  getChatRoomHistory: (roomId: number, current = 1, size = 20): Promise<ApiResponse<any>> => 
+    api.get(`/message/chatroom/history?roomId=${roomId}&current=${current}&size=${size}`).then(res => res.data)
+}
+
 // 工具方法
 export const apiUtils = {
   // 设置Token
   setToken: (token: string) => {
-    localStorage.setItem('auth_token', token)
+    runtimeToken = token
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
   },
 
   // 获取Token
   getToken: (): string | null => {
-    return localStorage.getItem('auth_token')
+    return runtimeToken || sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY)
   },
 
   // 清除Token
   clearToken: () => {
-    localStorage.removeItem('auth_token')
+    runtimeToken = ''
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
   },
 
   // 检查是否已登录
   isLoggedIn: (): boolean => {
-    return !!localStorage.getItem('auth_token')
+    return !!(runtimeToken || sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY))
   }
 }
 

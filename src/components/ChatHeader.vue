@@ -23,7 +23,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { VideoCamera, Phone, MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
@@ -35,7 +34,6 @@ const props = defineProps<{
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
-const router = useRouter()
 
 const roomName = computed(() => {
   if (props.room.name) return props.room.name
@@ -53,7 +51,6 @@ const onlineCount = computed(() => {
 
 const exitRoom = () => {
   chatStore.leaveCurrentRoom()
-  router.push('/lobby')
 }
 </script>
 

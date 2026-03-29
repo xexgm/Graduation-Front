@@ -1,0 +1,93 @@
+<template>
+  <div class="primary-nav">
+    <div class="nav-top">
+      <div
+        class="nav-item"
+        :class="{ active: activeModule === 'conversation' }"
+        title="会话"
+        @click="emit('change', 'conversation')"
+      >
+        <el-icon><ChatDotRound /></el-icon>
+      </div>
+      <div
+        class="nav-item"
+        :class="{ active: activeModule === 'friend' }"
+        title="好友"
+        @click="emit('change', 'friend')"
+      >
+        <el-icon><User /></el-icon>
+      </div>
+      <div
+        class="nav-item"
+        :class="{ active: activeModule === 'room' }"
+        title="聊天室"
+        @click="emit('change', 'room')"
+      >
+        <el-icon><Grid /></el-icon>
+      </div>
+    </div>
+    <div class="nav-bottom">
+      <div class="nav-item disabled" title="设置（预留）">
+        <el-icon><Setting /></el-icon>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ChatDotRound, Grid, Setting, User } from '@element-plus/icons-vue'
+
+defineProps<{
+  activeModule: 'conversation' | 'friend' | 'room'
+}>()
+
+const emit = defineEmits<{
+  change: [module: 'conversation' | 'friend' | 'room']
+}>()
+</script>
+
+<style scoped lang="scss">
+.primary-nav {
+  width: 64px;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  background: var(--bg-white);
+}
+
+.nav-top,
+.nav-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-item {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: var(--bg-light);
+
+  &.active {
+    color: #fff;
+    background: var(--primary-color);
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:not(.disabled) {
+    cursor: pointer;
+  }
+}
+</style>
+

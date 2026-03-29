@@ -114,3 +114,73 @@ export interface CreateChatRoomRequest {
   description?: string
   roomType?: ChatRoomType
 }
+
+// ---------------- 好友管理与私聊相关类型 ----------------
+
+/**
+ * Represents a user in the friend list.
+ * Based on the backend `FriendResponse`.
+ */
+export interface Friend {
+  userId: number;
+  username: string;
+  nickname: string;
+  avatarUrl?: string;
+  signature?: string;
+  status: number;         // 0=Offline, 1=Online
+  relationStatus: number; // 0=Normal, 1=Blocked
+}
+
+/**
+ * Response structure for the friend list API.
+ */
+export interface FriendListResponse {
+  code: number;
+  message: string;
+  data: Friend[];
+}
+
+/**
+ * Represents a single private message in history.
+ * Based on the backend `PrivateMessage`.
+ */
+export interface PrivateMessageHistory {
+  msgId: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  isRead: number;      // 0=Unread, 1=Read
+  createTime: string;  // ISO 8601 string or format "YYYY-MM-DD HH:mm:ss"
+}
+
+/**
+ * Paginated response structure for private chat history.
+ */
+export interface PrivateMessageHistoryResponse {
+  code: number;
+  message: string;
+  data: {
+    records: PrivateMessageHistory[];
+    total: number;
+    size: number;
+    current: number;
+    pages: number;
+  }
+}
+
+// ---------------- 统一会话模型（UI重构） ----------------
+
+export type ConversationType = 'private' | 'room'
+
+export interface Conversation {
+  conversationId: string
+  conversationType: ConversationType
+  title: string
+  avatar?: string
+  lastMessage?: string
+  lastMessageTime?: Date
+  unreadCount: number
+  friendId?: number
+  roomId?: number
+}
+

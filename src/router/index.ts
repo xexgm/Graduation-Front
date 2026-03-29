@@ -21,15 +21,21 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/workspace',
+      name: 'Workspace',
+      component: () => import('@/views/WorkspaceView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/chat',
       name: 'Chat',
-      component: () => import('@/views/ChatView.vue'),
+      component: () => import('@/views/WorkspaceView.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/lobby',
       name: 'Lobby',
-      component: () => import('@/views/LobbyView.vue'),
+      component: () => import('@/views/WorkspaceView.vue'),
       meta: { requiresAuth: true }
     },
     {

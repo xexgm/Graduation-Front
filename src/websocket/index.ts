@@ -8,6 +8,7 @@ export type WebSocketEvents = {
   'error': Event;
   'message:received': CompleteMessage;
   'message:chat': CompleteMessage;
+  'message:private': CompleteMessage;
 };
 
 class WebSocketService {
@@ -68,6 +69,10 @@ class WebSocketService {
 
         if (message.appId === 1 && message.messageType === 1) {
           this.emitter.emit('message:chat', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 1) {
+          this.emitter.emit('message:private', message)
         }
       }
 
@@ -178,6 +183,19 @@ class WebSocketService {
       toId: roomId,
       timeStamp: Date.now(),
       content: ""
+    })
+  }
+
+  // 发送私聊消息 (appId: 2, messageType: 1)
+  public sendPrivateMessage(uid: number, token: string, friendId: number, content: string): void {
+    this.send({
+      appId: 2,
+      messageType: 1,
+      uid,
+      token,
+      toId: friendId,
+      content,
+      timeStamp: Date.now()
     })
   }
 
