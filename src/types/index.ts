@@ -68,6 +68,22 @@ export interface CompleteMessage {
   timeStamp: number    // 发送时间戳
 }
 
+export interface UploadFileInfo {
+  fileId: number
+  fileName: string
+  fileSize: number
+  contentType?: string
+}
+
+export interface FileMessagePayload extends UploadFileInfo {
+  messageKind: 'FILE'
+}
+
+export interface AudioMessagePayload extends UploadFileInfo {
+  messageKind: 'AUDIO'
+  duration: number
+}
+
 // 聊天相关类型
 export interface Message {
   id: string
@@ -75,7 +91,9 @@ export interface Message {
   receiverId?: string
   roomId?: string
   content: string
-  type: 'text' | 'image' | 'file' | 'system'
+  type: 'text' | 'image' | 'file' | 'audio' | 'system'
+  fileInfo?: FileMessagePayload
+  audioInfo?: AudioMessagePayload
   timestamp: Date
   status: 'sending' | 'sent' | 'delivered' | 'read'
 }

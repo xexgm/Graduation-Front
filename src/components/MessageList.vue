@@ -45,9 +45,19 @@
                     <img :src="message.content" class="message-image" @click="previewImage(message.content)" />
                   </template>
                   <template v-else-if="message.type === 'file'">
-                    <div class="message-file">
+                    <div class="message-file" @click="downloadFile(message)">
                       <el-icon><Document /></el-icon>
-                      <span>{{ message.content }}</span>
+                      <div class="file-info">
+                        <span class="file-name">{{ getFileName(message) }}</span>
+                        <span class="file-size">{{ getFileSize(message) }}</span>
+                      </div>
+                      <el-icon class="file-download"><Download /></el-icon>
+                    </div>
+                  </template>
+                  <template v-else-if="message.type === 'audio'">
+                    <div class="message-audio" @click="playAudio(message)">
+                      <el-icon><VideoPlay /></el-icon>
+                      <span>{{ getAudioDuration(message) }}</span>
                     </div>
                   </template>
                   
@@ -92,10 +102,13 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { Document, Loading, Check, Select } from '@element-plus/icons-vue'
+import { Document, Loading, Check, Select, Download, VideoPlay } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
+import { fileApi } from '@/api'
+import { formatAudioDuration, formatFileSize, parseAudioMessageContent, parseFileMessageContent } from '@/utils/fileMessage'
 import type { ChatRoom, Message } from '@/types'
 
 const props = defineProps<{
@@ -184,6 +197,67 @@ const getTypingText = () => {
 const previewImage = (src: string) => {
   // TODO: 实现图片预览
   console.log('预览图片:', src)
+}
+
+const getFileInfo = (message: Message) => {
+  return message.fileInfo || parseFileMessageContent(message.content)
+}
+
+const getFileName = (message: Message) => {
+  return getFileInfo(message)?.fileName || '未知文件'
+}
+
+const getFileSize = (message: Message) => {
+  const fileInfo = getFileInfo(message)
+  return fileInfo ? formatFileSize(fileInfo.fileSize) : '未知大小'
+}
+
+const downloadFile = async (message: Message) => {
+  const fileInfo = getFileInfo(message)
+  if (!fileInfo) {
+    ElMessage.error('文件信息无效，无法下载')
+    return
+  }
+
+  try {
+    const blob = await fileApi.download(fileInfo.fileId)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileInfo.fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Download file failed:', error)
+    ElMessage.error('文件下载失败')
+  }
+}
+
+const getAudioInfo = (message: Message) => {
+  return message.audioInfo || parseAudioMessageContent(message.content)
+}
+
+const getAudioDuration = (message: Message) => {
+  return formatAudioDuration(getAudioInfo(message)?.duration || 0)
+}
+
+const playAudio = async (message: Message) => {
+  const audioInfo = getAudioInfo(message)
+  if (!audioInfo) {
+    ElMessage.error('语音信息无效，无法播放')
+    return
+  }
+
+  try {
+    const blob = await fileApi.download(audioInfo.fileId)
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    audio.onended = () => URL.revokeObjectURL(url)
+    await audio.play()
+  } catch (error) {
+    console.error('Play audio failed:', error)
+    ElMessage.error('语音播放失败')
+  }
 }
 
 const scrollToBottom = async () => {
@@ -328,6 +402,44 @@ watch(messages, (list) => {
   
   .el-icon {
     font-size: 20px;
+  }
+
+  .file-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .file-name {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    font-size: 12px;
+    opacity: 0.75;
+  }
+
+  .file-download {
+    margin-left: auto;
+    font-size: 16px;
+  }
+}
+
+.message-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 88px;
+  padding: 6px 8px;
+  border-radius: var(--radius-base);
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+
+  .el-icon {
+    font-size: 18px;
   }
 }
 

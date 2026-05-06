@@ -4,6 +4,7 @@ import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
 import type { ChatRoom, Message, CompleteMessage, BackendChatRoom, User } from '@/types'
 import { chatApi, authApi } from '@/api'
+import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
 
 let isWebSocketInitialized = false
 
@@ -33,12 +34,17 @@ export const useChatStore = defineStore('chat', () => {
     // 异步确保发送者资料已缓存，便于前端显示用户名/头像
     ensureUserLoaded(wsMessage.uid)
 
+    const type = resolveMessageType(wsMessage)
+    const fileInfo = parseFileMessageContent(wsMessage.content) || undefined
+    const audioInfo = parseAudioMessageContent(wsMessage.content) || undefined
     const message: Message = {
       id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
       senderId: String(wsMessage.uid),
       roomId: String(wsMessage.toId),
       content: wsMessage.content,
-      type: 'text',
+      type,
+      fileInfo,
+      audioInfo,
       timestamp: new Date(wsMessage.timeStamp),
       status: 'delivered'
     }
@@ -173,7 +179,7 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentRoom(null)
   }
 
-  async function sendMessage(content: string) {
+  async function sendMessage(content: string, type: Message['type'] = 'text') {
     const userStore = useUserStore()
     const token = userStore.token
     const user = userStore.user
@@ -193,7 +199,9 @@ export const useChatStore = defineStore('chat', () => {
       senderId: String(user.userId),
       roomId: roomIdStr,
       content,
-      type: 'text',
+      type,
+      fileInfo: type === 'file' ? parseFileMessageContent(content) || undefined : undefined,
+      audioInfo: type === 'audio' ? parseAudioMessageContent(content) || undefined : undefined,
       timestamp: new Date(),
       status: 'sending'
     }
@@ -204,7 +212,13 @@ export const useChatStore = defineStore('chat', () => {
     messages.value[roomIdStr].push(optimisticMessage)
 
     // Call the WebSocket service to send the message to the server.
-    webSocketService.sendChatMessage(user.userId, token, roomId, content)
+    if (type === 'audio') {
+      webSocketService.sendChatAudioMessage(user.userId, token, roomId, content)
+    } else if (type === 'file') {
+      webSocketService.sendChatFileMessage(user.userId, token, roomId, content)
+    } else {
+      webSocketService.sendChatMessage(user.userId, token, roomId, content)
+    }
 
     // Simulate updating message status after a delay.
     // In a real app, this would be triggered by a confirmation from the server.

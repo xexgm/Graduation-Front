@@ -12,8 +12,10 @@
 2. WebSocket 建连、心跳、断开、自动重连基础能力。
 3. 聊天室实时收发（`appId=1`）+ 乐观更新 + 自身回显过滤。
 4. 私聊实时收发（`appId=2`）+ 私聊历史拉取 + 未读计数。
-5. 好友列表轮询（5s）+ 添加/删除好友。
-6. Workspace 左侧模块导航（会话/好友/聊天室）与右侧统一会话面板联动。
+5. HTTP 文件上传/下载 + WebSocket 文件消息分发。
+6. 语音录制、上传、WebSocket 分发与点击播放。
+7. 好友列表轮询（5s）+ 添加/删除好友。
+8. Workspace 左侧模块导航（会话/好友/聊天室）与右侧统一会话面板联动。
 
 ---
 
@@ -119,18 +121,27 @@
 - 删除：`DELETE /chatroom/{roomId}`
 - 在线人数：`GET /chatroom/{roomId}/count`
 
+## 4.6 文件传输接口
+
+- 上传文件：`POST /file/upload`，`multipart/form-data` 字段名为 `file`
+- 下载文件：`GET /file/download/{fileId}`，以 Blob 方式下载并在前端触发保存
+- 文件和语音上传后，前端通过 WebSocket 发送元数据 JSON，文件/音频本体不走 WebSocket
+
 ---
 
 ## 5. WebSocket 与协议现状（Netty）
 
 WebSocket 核心文件：`src/websocket/index.ts`
 
-- 连接地址：`ws://localhost:9999/ws?token=<token>`
+- 连接地址由环境变量 `VITE_WS_URL` 控制，默认回退到 `ws://localhost:9999/ws`
+- 普通 WS：`ws://localhost:9999/ws?token=<token>`
+- 开启 WSS：`wss://localhost:9999/ws?token=<token>`
+- 本地 WSS 使用自签证书时，需要先在浏览器信任 `localhost:9999` 的证书
 - 消息模型：`CompleteMessage`
 - 关键业务线：
   - `appId=0`：建连/断连/心跳
-  - `appId=1`：聊天室进入/发送/退出
-  - `appId=2`：私聊发送与接收
+  - `appId=1`：聊天室进入/文本发送/退出/文件发送（`messageType=3`）/语音发送（`messageType=4`）
+  - `appId=2`：私聊文本发送与接收/文件发送与接收（`messageType=2`）/语音发送与接收（`messageType=3`）
 - 事件分发：
   - `message:chat` -> 聊天室 store
   - `message:private` -> 好友 store

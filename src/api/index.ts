@@ -8,7 +8,8 @@ import type {
   LogoutRequest,
   ChangePasswordRequest,
   TokenRequest,
-  User
+  User,
+  UploadFileInfo
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
@@ -38,6 +39,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
     return config
   },
   (error) => {
@@ -48,6 +52,10 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
+    if (response.config.responseType === 'blob') {
+      return response
+    }
+
     const { code, message } = response.data
     if (code !== 200) {
       ElMessage.error(message || '请求失败')
@@ -239,6 +247,18 @@ export const messageApi = {
   // 获取群聊历史记录
   getChatRoomHistory: (roomId: number, current = 1, size = 20): Promise<ApiResponse<any>> => 
     api.get(`/message/chatroom/history?roomId=${roomId}&current=${current}&size=${size}`).then(res => res.data)
+}
+
+export const fileApi = {
+  upload: (file: File): Promise<ApiResponse<UploadFileInfo>> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    return api.post('/file/upload', formData).then(res => res.data)
+  },
+
+  download: (fileId: number): Promise<Blob> =>
+    api.get(`/file/download/${fileId}`, { responseType: 'blob' }).then(res => res.data)
 }
 
 // 工具方法

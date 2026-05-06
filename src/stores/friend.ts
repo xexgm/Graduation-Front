@@ -4,6 +4,7 @@ import type { Friend, Message, CompleteMessage } from '@/types'
 import { friendApi, messageApi } from '@/api'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
+import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
 
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<Friend[]>([])
@@ -89,16 +90,22 @@ export const useFriendStore = defineStore('friend', () => {
       const response = await messageApi.getPrivateHistory(userStore.user.userId, normalizedFriendId)
       if (response.code === 200 && response.data && response.data.records) {
         // Convert history records to Message interface
-        const historyMessages: Message[] = response.data.records.map(record => ({
-          id: String(record.msgId),
-          senderId: String(record.senderId),
-          receiverId: String(record.receiverId),
-          roomId: '', // Optional for private chat
-          content: record.content,
-          type: 'text',
-          timestamp: new Date(record.createTime),
-          status: 'delivered'
-        }))
+        const historyMessages: Message[] = response.data.records.map(record => {
+          const fileInfo = parseFileMessageContent(record.content) || undefined
+          const audioInfo = parseAudioMessageContent(record.content) || undefined
+          return {
+            id: String(record.msgId),
+            senderId: String(record.senderId),
+            receiverId: String(record.receiverId),
+            roomId: '', // Optional for private chat
+            content: record.content,
+            type: audioInfo ? 'audio' : fileInfo ? 'file' : 'text',
+            fileInfo,
+            audioInfo,
+            timestamp: new Date(record.createTime),
+            status: 'delivered'
+          }
+        })
         
         // Sort ascending by timestamp (oldest first)
         historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
@@ -109,7 +116,7 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  async function sendPrivateMessage(content: string) {
+  async function sendPrivateMessage(content: string, type: Message['type'] = 'text') {
     const userStore = useUserStore()
     const token = userStore.token
     const user = userStore.user
@@ -127,7 +134,9 @@ export const useFriendStore = defineStore('friend', () => {
       senderId: String(user.userId),
       receiverId: String(friendId),
       content,
-      type: 'text',
+      type,
+      fileInfo: type === 'file' ? parseFileMessageContent(content) || undefined : undefined,
+      audioInfo: type === 'audio' ? parseAudioMessageContent(content) || undefined : undefined,
       timestamp: new Date(),
       status: 'sending'
     }
@@ -138,7 +147,13 @@ export const useFriendStore = defineStore('friend', () => {
     privateMessages.value[friendId].push(optimisticMessage)
 
     // Call the WebSocket service
-    webSocketService.sendPrivateMessage(user.userId, token, friendId, content)
+    if (type === 'audio') {
+      webSocketService.sendPrivateAudioMessage(user.userId, token, friendId, content)
+    } else if (type === 'file') {
+      webSocketService.sendPrivateFileMessage(user.userId, token, friendId, content)
+    } else {
+      webSocketService.sendPrivateMessage(user.userId, token, friendId, content)
+    }
 
     setTimeout(() => {
       const msg = privateMessages.value[friendId]?.find(m => m.id === optimisticMessage.id)
@@ -160,12 +175,17 @@ export const useFriendStore = defineStore('friend', () => {
     const senderId = wsMessage.uid
     const receiverId = wsMessage.toId // should be current user's ID
 
+    const type = resolveMessageType(wsMessage)
+    const fileInfo = parseFileMessageContent(wsMessage.content) || undefined
+    const audioInfo = parseAudioMessageContent(wsMessage.content) || undefined
     const message: Message = {
       id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
       senderId: String(senderId),
       receiverId: String(receiverId),
       content: wsMessage.content,
-      type: 'text',
+      type,
+      fileInfo,
+      audioInfo,
       timestamp: new Date(wsMessage.timeStamp),
       status: 'delivered'
     }

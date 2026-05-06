@@ -25,6 +25,7 @@ import PrivateChatWindow from '@/components/friend/PrivateChatWindow.vue'
 import ChatHeader from '@/components/ChatHeader.vue'
 import MessageInput from '@/components/MessageInput.vue'
 import MessageList from '@/components/MessageList.vue'
+import type { Message } from '@/types'
 
 const chatStore = useChatStore()
 const conversationStore = useConversationStore()
@@ -32,9 +33,9 @@ const conversationStore = useConversationStore()
 const active = computed(() => conversationStore.activeConversation)
 const currentRoom = computed(() => chatStore.currentRoom)
 
-const handleSendMessage = async (content: string) => {
+const handleSendMessage = async (content: string, type: Message['type'] = 'text') => {
   try {
-    await chatStore.sendMessage(content)
+    await chatStore.sendMessage(content, type)
   } catch (error) {
     ElMessage.error('发送消息失败')
   }

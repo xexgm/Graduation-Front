@@ -87,8 +87,13 @@ npm run preview
 创建 `.env.local` 文件配置本地环境变量：
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api
-VITE_WS_URL=ws://localhost:8080/ws
+VITE_API_BASE_URL=/api
+
+# 后端 Netty 未开启 WSS 时使用
+VITE_WS_URL=ws://localhost:9999/ws
+
+# 后端 Netty 通过参数开启 WSS 时，将同一个变量切换为 wss://
+VITE_WS_URL=wss://localhost:9999/ws
 ```
 
 ### 后端 API 集成
@@ -102,13 +107,12 @@ VITE_WS_URL=ws://localhost:8080/ws
 
 ### WebSocket 连接
 
-WebSocket 用于实时消息推送，支持以下消息类型：
+WebSocket 用于实时消息推送，连接地址由 `src/websocket/index.ts` 读取环境变量控制：
 
-- `message`: 聊天消息
-- `user_join`: 用户上线
-- `user_leave`: 用户下线
-- `typing`: 正在输入状态
-- `heartbeat`: 心跳检测
+- `VITE_WS_URL=ws://localhost:9999/ws`：后端未开启 WSS 时使用。
+- `VITE_WS_URL=wss://localhost:9999/ws`：后端开启 `netty.ssl.enabled=true` 时使用。
+
+使用自签证书的本地 WSS 需要先让浏览器信任证书。可以先访问 `https://localhost:9999/ws`，在浏览器安全提示中选择继续访问；页面出现 400、404 或 Upgrade 相关错误是正常的，关键是让浏览器信任 `localhost:9999` 的证书。
 
 ## 🎨 界面展示
 

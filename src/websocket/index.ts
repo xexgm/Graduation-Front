@@ -67,11 +67,11 @@ class WebSocketService {
         console.log('====== [WebSocket] 收到服务器消息 (onmessage) ======', message)
         this.emitter.emit('message:received', message)
 
-        if (message.appId === 1 && message.messageType === 1) {
+        if (message.appId === 1 && (message.messageType === 1 || message.messageType === 3 || message.messageType === 4)) {
           this.emitter.emit('message:chat', message)
         }
 
-        if (message.appId === 2 && message.messageType === 1) {
+        if (message.appId === 2 && (message.messageType === 1 || message.messageType === 2 || message.messageType === 3)) {
           this.emitter.emit('message:private', message)
         }
       }
@@ -173,6 +173,32 @@ class WebSocketService {
     })
   }
 
+  // 发送聊天室文件消息 (appId: 1, messageType: 3)
+  public sendChatFileMessage(uid: number, token: string, roomId: number, content: string): void {
+    this.send({
+      appId: 1,
+      messageType: 3,
+      uid,
+      token,
+      toId: roomId,
+      content,
+      timeStamp: Date.now()
+    })
+  }
+
+  // 发送聊天室语音消息 (appId: 1, messageType: 4)
+  public sendChatAudioMessage(uid: number, token: string, roomId: number, content: string): void {
+    this.send({
+      appId: 1,
+      messageType: 4,
+      uid,
+      token,
+      toId: roomId,
+      content,
+      timeStamp: Date.now()
+    })
+  }
+
   // 退出聊天室 (appId: 1, messageType: 2)
   public exitChatRoom(uid: number, token: string, roomId: number): void {
     this.send({
@@ -191,6 +217,32 @@ class WebSocketService {
     this.send({
       appId: 2,
       messageType: 1,
+      uid,
+      token,
+      toId: friendId,
+      content,
+      timeStamp: Date.now()
+    })
+  }
+
+  // 发送私聊文件消息 (appId: 2, messageType: 2)
+  public sendPrivateFileMessage(uid: number, token: string, friendId: number, content: string): void {
+    this.send({
+      appId: 2,
+      messageType: 2,
+      uid,
+      token,
+      toId: friendId,
+      content,
+      timeStamp: Date.now()
+    })
+  }
+
+  // 发送私聊语音消息 (appId: 2, messageType: 3)
+  public sendPrivateAudioMessage(uid: number, token: string, friendId: number, content: string): void {
+    this.send({
+      appId: 2,
+      messageType: 3,
       uid,
       token,
       toId: friendId,
@@ -227,7 +279,7 @@ class WebSocketService {
   }
 }
 
-// 创建并导出一个单例
+// 创建并导出一个单例，协议由 VITE_WS_URL 中的 ws:// 或 wss:// 决定。
 const wsURL = import.meta.env.VITE_WS_URL || 'ws://localhost:9999/ws'
 export const webSocketService = new WebSocketService(wsURL)
 
