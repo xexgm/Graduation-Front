@@ -25,7 +25,8 @@ const activeModule = ref<'conversation' | 'friend' | 'room'>('conversation')
 onMounted(async () => {
   await Promise.all([
     chatStore.fetchRooms(),
-    friendStore.fetchFriends()
+    friendStore.fetchFriends(),
+    friendStore.fetchUnreadCounts()
   ])
 
   try {

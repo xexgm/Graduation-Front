@@ -9,6 +9,12 @@ export type WebSocketEvents = {
   'message:received': CompleteMessage;
   'message:chat': CompleteMessage;
   'message:private': CompleteMessage;
+  'message:private-server-ack': CompleteMessage;
+  'message:private-delivered-ack': CompleteMessage;
+  'message:private-read-ack': CompleteMessage;
+  'notification:friend-request': CompleteMessage;
+  'notification:friend-accepted': CompleteMessage;
+  'notification:friend-rejected': CompleteMessage;
 };
 
 class WebSocketService {
@@ -73,6 +79,30 @@ class WebSocketService {
 
         if (message.appId === 2 && (message.messageType === 1 || message.messageType === 2 || message.messageType === 3)) {
           this.emitter.emit('message:private', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 4) {
+          this.emitter.emit('notification:friend-request', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 5) {
+          this.emitter.emit('notification:friend-accepted', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 6) {
+          this.emitter.emit('notification:friend-rejected', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 7) {
+          this.emitter.emit('message:private-server-ack', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 8) {
+          this.emitter.emit('message:private-delivered-ack', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 9) {
+          this.emitter.emit('message:private-read-ack', message)
         }
       }
 
@@ -225,6 +255,26 @@ class WebSocketService {
     })
   }
 
+  public sendPrivateMessageWithClientId(
+    uid: number,
+    token: string,
+    friendId: number,
+    content: string,
+    messageType = 1,
+    clientMsgId?: string
+  ): void {
+    this.send({
+      appId: 2,
+      messageType,
+      uid,
+      token,
+      toId: friendId,
+      content,
+      clientMsgId,
+      timeStamp: Date.now()
+    })
+  }
+
   // 发送私聊文件消息 (appId: 2, messageType: 2)
   public sendPrivateFileMessage(uid: number, token: string, friendId: number, content: string): void {
     this.send({
@@ -247,6 +297,31 @@ class WebSocketService {
       token,
       toId: friendId,
       content,
+      timeStamp: Date.now()
+    })
+  }
+
+  public sendPrivateDeliveredAck(uid: number, token: string, senderId: number, msgId: number): void {
+    this.send({
+      appId: 2,
+      messageType: 8,
+      uid,
+      token,
+      toId: senderId,
+      msgId,
+      content: JSON.stringify({ status: 'DELIVERED' }),
+      timeStamp: Date.now()
+    })
+  }
+
+  public sendPrivateReadAck(uid: number, token: string, friendId: number, maxMsgId: number): void {
+    this.send({
+      appId: 2,
+      messageType: 9,
+      uid,
+      token,
+      toId: friendId,
+      content: JSON.stringify({ maxMsgId }),
       timeStamp: Date.now()
     })
   }

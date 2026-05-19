@@ -2,7 +2,8 @@
   <div class="module-pane">
     <div class="pane-header">
       <div class="title">聊天室</div>
-      <el-button size="small" type="primary" @click="showCreateDialog = true">创建聊天室</el-button>
+      <el-button v-if="isAdmin" size="small" type="primary" @click="showCreateDialog = true">创建聊天室</el-button>
+      <el-button v-else size="small" @click="goSettings">申请管理员</el-button>
     </div>
 
     <el-scrollbar class="list-wrap">
@@ -53,15 +54,20 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useConversationStore } from '@/stores/conversation'
+import { useUserStore } from '@/stores/user'
 
 const chatStore = useChatStore()
 const conversationStore = useConversationStore()
+const userStore = useUserStore()
+const router = useRouter()
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
+const isAdmin = computed(() => userStore.user?.role === 1)
 const createForm = reactive<{
   roomName: string
   roomType: 'PUBLIC_ROOM' | 'PRIVATE_ROOM'
@@ -76,8 +82,17 @@ const openRoom = async (roomId: string) => {
   await conversationStore.openRoomByRoomId(Number(roomId))
 }
 
+const goSettings = () => {
+  ElMessage.info('请先申请成为管理员后再创建聊天室')
+  router.push('/settings')
+}
+
 const handleCreateRoom = async () => {
   const roomName = createForm.roomName.trim()
+  if (!isAdmin.value) {
+    goSettings()
+    return
+  }
   if (!roomName) {
     ElMessage.warning('请输入聊天室名称')
     return

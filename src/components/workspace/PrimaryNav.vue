@@ -27,7 +27,7 @@
       </div>
     </div>
     <div class="nav-bottom">
-      <div class="nav-item disabled" title="设置（预留）">
+      <div class="nav-item" title="设置" @click="router.push('/settings')">
         <el-icon><Setting /></el-icon>
       </div>
     </div>
@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
 import { ChatDotRound, Grid, Setting, User } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 
 defineProps<{
   activeModule: 'conversation' | 'friend' | 'room'
@@ -44,6 +45,8 @@ defineProps<{
 const emit = defineEmits<{
   change: [module: 'conversation' | 'friend' | 'room']
 }>()
+
+const router = useRouter()
 </script>
 
 <style scoped lang="scss">

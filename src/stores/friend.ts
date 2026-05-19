@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Friend, Message, CompleteMessage } from '@/types'
-import { friendApi, messageApi } from '@/api'
+import { ElMessage } from 'element-plus'
+import type { Friend, FriendRequest, Message, CompleteMessage, PrivateUnreadCount } from '@/types'
+import { friendApi, friendRequestApi, messageApi } from '@/api'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
 import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
@@ -11,9 +12,63 @@ export const useFriendStore = defineStore('friend', () => {
   const privateMessages = ref<Record<number, Message[]>>({})
   const unreadCounts = ref<Record<number, number>>({})
   const activeFriendId = ref<number | null>(null)
+  const receivedRequests = ref<FriendRequest[]>([])
+  const sentRequests = ref<FriendRequest[]>([])
   
   let isFriendWebSocketInitialized = false
   let friendPollingTimer: number | null = null
+  const pendingAckTimers: Record<string, number> = {}
+
+  function generateClientMsgId(uid: number) {
+    return `${uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  function getPrivateMessageType(type: Message['type']) {
+    if (type === 'file') return 2
+    if (type === 'audio') return 3
+    return 1
+  }
+
+  function normalizePrivateStatus(rawStatus?: number | string, isRead?: number): Message['status'] {
+    if (rawStatus === 'READ' || rawStatus === 3 || rawStatus === '3' || isRead === 1) return 'read'
+    if (rawStatus === 'DELIVERED' || rawStatus === 2 || rawStatus === '2') return 'delivered'
+    return 'sent'
+  }
+
+  function getConversationMessages(friendId: number) {
+    if (!privateMessages.value[friendId]) {
+      privateMessages.value[friendId] = []
+    }
+    return privateMessages.value[friendId]
+  }
+
+  function clearAckTimer(clientMsgId?: string) {
+    if (!clientMsgId || !pendingAckTimers[clientMsgId]) return
+    clearTimeout(pendingAckTimers[clientMsgId])
+    delete pendingAckTimers[clientMsgId]
+  }
+
+  function findOutgoingMessage(clientMsgId?: string, msgId?: number) {
+    for (const list of Object.values(privateMessages.value)) {
+      const message = list.find(item =>
+        (clientMsgId && item.clientMsgId === clientMsgId) ||
+        (msgId && item.msgId === msgId)
+      )
+      if (message) return message
+    }
+    return null
+  }
+
+  function scheduleAckTimeout(friendId: number, clientMsgId: string) {
+    clearAckTimer(clientMsgId)
+    pendingAckTimers[clientMsgId] = window.setTimeout(() => {
+      const message = privateMessages.value[friendId]?.find(item => item.clientMsgId === clientMsgId)
+      if (message?.status === 'sending') {
+        message.status = 'failed'
+      }
+      delete pendingAckTimers[clientMsgId]
+    }, 10000)
+  }
 
   function normalizeFriend(rawFriend: any): Friend | null {
     const rawId = rawFriend?.userId ?? rawFriend?.friendId ?? rawFriend?.id
@@ -61,20 +116,71 @@ export const useFriendStore = defineStore('friend', () => {
   }
 
   async function addFriend(friendId: number) {
+    return sendFriendRequest(friendId)
+  }
+
+  async function sendFriendRequest(friendId: number, message?: string) {
     const userStore = useUserStore()
     if (!userStore.user) return
 
     try {
-      const response = await friendApi.addFriend(friendId, userStore.user.userId)
+      const response = await friendRequestApi.send({ friendId, message })
       if (response.code === 200) {
-        await fetchFriends() // Refresh the list
+        await fetchSentRequests()
         return true
       }
       return false
     } catch (error) {
-      console.error('Failed to add friend:', error)
+      console.error('Failed to send friend request:', error)
       throw error
     }
+  }
+
+  async function fetchReceivedRequests(status = 0) {
+    try {
+      const response = await friendRequestApi.getReceived(status)
+      receivedRequests.value = response.data || []
+    } catch (error) {
+      console.error('Failed to fetch received friend requests:', error)
+      receivedRequests.value = []
+    }
+  }
+
+  async function fetchSentRequests() {
+    try {
+      const response = await friendRequestApi.getSent()
+      sentRequests.value = response.data || []
+    } catch (error) {
+      console.error('Failed to fetch sent friend requests:', error)
+      sentRequests.value = []
+    }
+  }
+
+  async function acceptFriendRequest(id: number) {
+    const response = await friendRequestApi.accept(id)
+    if (response.code === 200) {
+      await Promise.all([fetchReceivedRequests(), fetchFriends()])
+      return true
+    }
+    return false
+  }
+
+  async function rejectFriendRequest(id: number, reason?: string) {
+    const response = await friendRequestApi.reject(id, { reason })
+    if (response.code === 200) {
+      await fetchReceivedRequests()
+      return true
+    }
+    return false
+  }
+
+  async function cancelFriendRequest(id: number) {
+    const response = await friendRequestApi.cancel(id)
+    if (response.code === 200) {
+      await fetchSentRequests()
+      return true
+    }
+    return false
   }
 
   async function fetchPrivateHistory(friendId: number) {
@@ -93,30 +199,36 @@ export const useFriendStore = defineStore('friend', () => {
         const historyMessages: Message[] = response.data.records.map(record => {
           const fileInfo = parseFileMessageContent(record.content) || undefined
           const audioInfo = parseAudioMessageContent(record.content) || undefined
+          const messageType = Number(record.messageType || 1)
           return {
             id: String(record.msgId),
+            msgId: record.msgId,
+            clientMsgId: record.clientMsgId,
             senderId: String(record.senderId),
             receiverId: String(record.receiverId),
             roomId: '', // Optional for private chat
             content: record.content,
-            type: audioInfo ? 'audio' : fileInfo ? 'file' : 'text',
+            type: audioInfo || messageType === 3 ? 'audio' : fileInfo || messageType === 2 ? 'file' : 'text',
             fileInfo,
             audioInfo,
             timestamp: new Date(record.createTime),
-            status: 'delivered'
+            status: normalizePrivateStatus(record.status, record.isRead),
+            deliveredTime: record.deliveredTime ? new Date(record.deliveredTime) : undefined,
+            readTime: record.readTime ? new Date(record.readTime) : undefined
           }
         })
         
         // Sort ascending by timestamp (oldest first)
         historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
         privateMessages.value[normalizedFriendId] = historyMessages
+        await markConversationRead(normalizedFriendId)
       }
     } catch (error) {
       console.error(`Failed to fetch history for friend ${normalizedFriendId}:`, error)
     }
   }
 
-  async function sendPrivateMessage(content: string, type: Message['type'] = 'text') {
+  async function sendPrivateMessage(content: string, type: Message['type'] = 'text', clientMsgId?: string) {
     const userStore = useUserStore()
     const token = userStore.token
     const user = userStore.user
@@ -127,10 +239,12 @@ export const useFriendStore = defineStore('friend', () => {
     }
 
     const friendId = activeFriendId.value
+    const finalClientMsgId = clientMsgId || generateClientMsgId(user.userId)
 
     // Optimistic update
     const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
+      id: finalClientMsgId,
+      clientMsgId: finalClientMsgId,
       senderId: String(user.userId),
       receiverId: String(friendId),
       content,
@@ -141,26 +255,31 @@ export const useFriendStore = defineStore('friend', () => {
       status: 'sending'
     }
 
-    if (!privateMessages.value[friendId]) {
-      privateMessages.value[friendId] = []
-    }
-    privateMessages.value[friendId].push(optimisticMessage)
-
-    // Call the WebSocket service
-    if (type === 'audio') {
-      webSocketService.sendPrivateAudioMessage(user.userId, token, friendId, content)
-    } else if (type === 'file') {
-      webSocketService.sendPrivateFileMessage(user.userId, token, friendId, content)
+    const list = getConversationMessages(friendId)
+    const existing = list.find(message => message.clientMsgId === finalClientMsgId)
+    if (existing) {
+      Object.assign(existing, optimisticMessage)
     } else {
-      webSocketService.sendPrivateMessage(user.userId, token, friendId, content)
+      list.push(optimisticMessage)
     }
 
-    setTimeout(() => {
-      const msg = privateMessages.value[friendId]?.find(m => m.id === optimisticMessage.id)
-      if (msg) {
-        msg.status = 'sent'
-      }
-    }, 500)
+    webSocketService.sendPrivateMessageWithClientId(
+      user.userId,
+      token,
+      friendId,
+      content,
+      getPrivateMessageType(type),
+      finalClientMsgId
+    )
+
+    scheduleAckTimeout(friendId, finalClientMsgId)
+  }
+
+  async function retryPrivateMessage(message: Message) {
+    if (!message.clientMsgId) {
+      return sendPrivateMessage(message.content, message.type)
+    }
+    return sendPrivateMessage(message.content, message.type, message.clientMsgId)
   }
 
   async function handleIncomingPrivateMessage(wsMessage: CompleteMessage) {
@@ -179,7 +298,9 @@ export const useFriendStore = defineStore('friend', () => {
     const fileInfo = parseFileMessageContent(wsMessage.content) || undefined
     const audioInfo = parseAudioMessageContent(wsMessage.content) || undefined
     const message: Message = {
-      id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
+      id: wsMessage.clientMsgId || `${wsMessage.uid}-${wsMessage.timeStamp}`,
+      msgId: wsMessage.msgId,
+      clientMsgId: wsMessage.clientMsgId,
       senderId: String(senderId),
       receiverId: String(receiverId),
       content: wsMessage.content,
@@ -191,21 +312,139 @@ export const useFriendStore = defineStore('friend', () => {
     }
 
     // 根据发送者ID (即好友ID) 寻找对应的聊天记录数组
-    if (!privateMessages.value[senderId]) {
-      privateMessages.value[senderId] = []
+    const list = getConversationMessages(senderId)
+    const duplicate = list.some(item =>
+      (message.msgId && item.msgId === message.msgId) ||
+      (message.clientMsgId && item.clientMsgId === message.clientMsgId)
+    )
+    if (!duplicate) {
+      list.push(message)
     }
-    privateMessages.value[senderId].push(message)
+
+    sendDeliveredAck(wsMessage)
 
     // 如果当前并没有点开这个好友的窗口，增加未读数
     if (activeFriendId.value !== senderId) {
       unreadCounts.value[senderId] = (unreadCounts.value[senderId] || 0) + 1
+    } else {
+      await markConversationRead(senderId)
+    }
+  }
+
+  function sendDeliveredAck(wsMessage: CompleteMessage) {
+    const userStore = useUserStore()
+    const token = userStore.token
+    const user = userStore.user
+    if (!token || !user || !wsMessage.msgId) return
+    webSocketService.sendPrivateDeliveredAck(user.userId, token, wsMessage.uid, wsMessage.msgId)
+  }
+
+  function handleServerAck(wsMessage: CompleteMessage) {
+    const message = findOutgoingMessage(wsMessage.clientMsgId, wsMessage.msgId)
+    if (!message) return
+
+    clearAckTimer(message.clientMsgId)
+    message.msgId = wsMessage.msgId || message.msgId
+    message.status = 'sent'
+  }
+
+  function handleDeliveredAck(wsMessage: CompleteMessage) {
+    const message = findOutgoingMessage(wsMessage.clientMsgId, wsMessage.msgId)
+    if (!message) return
+    if (message.status !== 'read') {
+      message.status = 'delivered'
+      message.deliveredTime = new Date(wsMessage.timeStamp)
+    }
+  }
+
+  function handleReadAck(wsMessage: CompleteMessage) {
+    let maxMsgId = wsMessage.msgId || 0
+    try {
+      const payload = JSON.parse(wsMessage.content || '{}')
+      maxMsgId = Number(payload.maxMsgId || maxMsgId)
+    } catch {}
+    if (!maxMsgId) return
+
+    const friendId = wsMessage.uid
+    const list = privateMessages.value[friendId] || []
+    list.forEach(message => {
+      if (message.msgId && message.msgId <= maxMsgId && String(message.senderId) !== String(friendId)) {
+        message.status = 'read'
+        message.readTime = new Date(wsMessage.timeStamp)
+      }
+    })
+  }
+
+  async function markConversationRead(friendId: number) {
+    const userStore = useUserStore()
+    const token = userStore.token
+    const user = userStore.user
+    if (!token || !user || document.visibilityState !== 'visible') return
+
+    const list = privateMessages.value[friendId] || []
+    const maxMsgId = Math.max(
+      0,
+      ...list
+        .filter(message => String(message.senderId) === String(friendId) && message.msgId && message.status !== 'read')
+        .map(message => Number(message.msgId))
+    )
+    if (!maxMsgId) return
+
+    webSocketService.sendPrivateReadAck(user.userId, token, friendId, maxMsgId)
+    try {
+      await messageApi.markPrivateRead({ friendId, maxMsgId })
+    } catch (error) {
+      console.warn('HTTP mark private read failed:', error)
+    }
+
+    list.forEach(message => {
+      if (String(message.senderId) === String(friendId) && message.msgId && message.msgId <= maxMsgId) {
+        message.status = 'read'
+        message.readTime = new Date()
+      }
+    })
+    unreadCounts.value[friendId] = 0
+  }
+
+  async function fetchUnreadCounts() {
+    try {
+      const response = await messageApi.getPrivateUnreadCount()
+      const counts = response.data || []
+      const nextCounts: Record<number, number> = {}
+      counts.forEach((item: PrivateUnreadCount) => {
+        nextCounts[Number(item.friendId)] = Number(item.unreadCount || 0)
+      })
+      unreadCounts.value = nextCounts
+    } catch (error) {
+      console.warn('Fetch private unread counts failed:', error)
     }
   }
 
   function initFriendWebSocket() {
     if (isFriendWebSocketInitialized) return
     webSocketService.on('message:private', handleIncomingPrivateMessage)
+    webSocketService.on('message:private-server-ack', handleServerAck)
+    webSocketService.on('message:private-delivered-ack', handleDeliveredAck)
+    webSocketService.on('message:private-read-ack', handleReadAck)
+    webSocketService.on('notification:friend-request', handleFriendRequestNotification)
+    webSocketService.on('notification:friend-accepted', handleFriendAcceptedNotification)
+    webSocketService.on('notification:friend-rejected', handleFriendRejectedNotification)
     isFriendWebSocketInitialized = true
+  }
+
+  async function handleFriendRequestNotification() {
+    ElMessage.info('你收到一条好友请求')
+    await fetchReceivedRequests()
+  }
+
+  async function handleFriendAcceptedNotification() {
+    ElMessage.success('对方已通过你的好友请求')
+    await Promise.all([fetchFriends(), fetchSentRequests()])
+  }
+
+  async function handleFriendRejectedNotification() {
+    ElMessage.info('对方已拒绝你的好友请求')
+    await fetchSentRequests()
   }
 
   async function openPrivateChat(friendId: number) {
@@ -220,6 +459,7 @@ export const useFriendStore = defineStore('friend', () => {
       unreadCounts.value[normalizedFriendId] = 0
     }
     await fetchPrivateHistory(normalizedFriendId)
+    await markConversationRead(normalizedFriendId)
   }
 
   function startFriendPolling(intervalMs = 5000) {
@@ -260,14 +500,25 @@ export const useFriendStore = defineStore('friend', () => {
 
   return {
     friends,
+    receivedRequests,
+    sentRequests,
     privateMessages,
     unreadCounts,
     activeFriendId,
     fetchFriends,
+    fetchUnreadCounts,
     addFriend,
+    sendFriendRequest,
+    fetchReceivedRequests,
+    fetchSentRequests,
+    acceptFriendRequest,
+    rejectFriendRequest,
+    cancelFriendRequest,
     removeFriend,
     fetchPrivateHistory,
     sendPrivateMessage,
+    retryPrivateMessage,
+    markConversationRead,
     openPrivateChat,
     initFriendWebSocket,
     startFriendPolling,

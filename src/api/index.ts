@@ -9,7 +9,14 @@ import type {
   ChangePasswordRequest,
   TokenRequest,
   User,
-  UploadFileInfo
+  UploadFileInfo,
+  AdminApplication,
+  AdminApplicationRequest,
+  FriendRequest,
+  FriendRequestCreateRequest,
+  FriendRequestRejectRequest,
+  PrivateReadRequest,
+  PrivateUnreadCount
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
@@ -234,6 +241,34 @@ export const friendApi = {
     api.get(`/friend/list?userId=${userId}`).then(res => res.data)
 }
 
+export const friendRequestApi = {
+  send: (data: FriendRequestCreateRequest): Promise<ApiResponse<FriendRequest>> =>
+    api.post('/friend/request', data).then(res => res.data),
+
+  getReceived: (status?: number): Promise<ApiResponse<FriendRequest[]>> =>
+    api.get('/friend/request/received', { params: status === undefined ? undefined : { status } }).then(res => res.data),
+
+  getSent: (): Promise<ApiResponse<FriendRequest[]>> =>
+    api.get('/friend/request/sent').then(res => res.data),
+
+  accept: (id: number): Promise<ApiResponse<null>> =>
+    api.post(`/friend/request/${id}/accept`).then(res => res.data),
+
+  reject: (id: number, data: FriendRequestRejectRequest = {}): Promise<ApiResponse<null>> =>
+    api.post(`/friend/request/${id}/reject`, data).then(res => res.data),
+
+  cancel: (id: number): Promise<ApiResponse<null>> =>
+    api.post(`/friend/request/${id}/cancel`).then(res => res.data)
+}
+
+export const adminApplicationApi = {
+  apply: (data: AdminApplicationRequest): Promise<ApiResponse<AdminApplication>> =>
+    api.post('/admin/application', data).then(res => res.data),
+
+  getMyApplication: (): Promise<ApiResponse<AdminApplication | null>> =>
+    api.get('/admin/application/my').then(res => res.data)
+}
+
 export const messageApi = {
   // 获取私聊历史记录
   getPrivateHistory: (userId: number, friendId: number, current = 1, size = 20): Promise<ApiResponse<import('@/types').PrivateMessageHistoryResponse['data']>> => {
@@ -246,7 +281,15 @@ export const messageApi = {
 
   // 获取群聊历史记录
   getChatRoomHistory: (roomId: number, current = 1, size = 20): Promise<ApiResponse<any>> => 
-    api.get(`/message/chatroom/history?roomId=${roomId}&current=${current}&size=${size}`).then(res => res.data)
+    api.get(`/message/chatroom/history?roomId=${roomId}&current=${current}&size=${size}`).then(res => res.data),
+
+  // 标记私聊消息已读
+  markPrivateRead: (data: PrivateReadRequest): Promise<ApiResponse<null>> =>
+    api.post('/message/private/read', data).then(res => res.data),
+
+  // 获取私聊未读数量
+  getPrivateUnreadCount: (): Promise<ApiResponse<PrivateUnreadCount[]>> =>
+    api.get('/message/private/unread-count').then(res => res.data)
 }
 
 export const fileApi = {

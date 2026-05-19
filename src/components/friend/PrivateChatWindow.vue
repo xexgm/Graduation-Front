@@ -50,7 +50,24 @@
                 {{ msg.content }}
               </template>
             </div>
-            <div class="msg-time">{{ formatTime(msg.timestamp) }}</div>
+            <div class="msg-meta">
+              <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
+              <template v-if="isMyMessage(msg.senderId)">
+                <el-button
+                  v-if="msg.status === 'failed'"
+                  text
+                  size="small"
+                  type="danger"
+                  class="retry-btn"
+                  @click="retryMessage(msg)"
+                >
+                  重发
+                </el-button>
+                <span class="msg-status" :class="`status-${msg.status}`">
+                  {{ formatMessageStatus(msg.status) }}
+                </span>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -90,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useFriendStore } from '@/stores/friend'
 import { useUserStore } from '@/stores/user'
 import { fileApi } from '@/api'
@@ -152,6 +169,18 @@ const formatTime = (time: Date) => {
   return dayjs(time).format('HH:mm')
 }
 
+const formatMessageStatus = (status: Message['status']) => {
+  const statusMap: Record<Message['status'], string> = {
+    sending: '发送中',
+    failed: '发送失败',
+    sent: '已发送',
+    delivered: '已送达',
+    read: '已读'
+  }
+
+  return statusMap[status] || ''
+}
+
 const getFileInfo = (message: Message) => {
   return message.fileInfo || parseFileMessageContent(message.content)
 }
@@ -191,6 +220,12 @@ watch(messages, () => {
   scrollToBottom()
 }, { deep: true })
 
+watch(messages, async () => {
+  if (friendStore.activeFriendId !== null) {
+    await friendStore.markConversationRead(friendStore.activeFriendId)
+  }
+}, { deep: true, flush: 'post' })
+
 const handleSend = async () => {
   const content = inputContent.value.trim()
   if (!content) return
@@ -198,6 +233,21 @@ const handleSend = async () => {
   await friendStore.sendPrivateMessage(content)
   inputContent.value = ''
   scrollToBottom()
+}
+
+const retryMessage = async (message: Message) => {
+  try {
+    await friendStore.retryPrivateMessage(message)
+  } catch (error) {
+    console.error('Retry private message failed:', error)
+    ElMessage.error('重发失败')
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && friendStore.activeFriendId !== null) {
+    friendStore.markConversationRead(friendStore.activeFriendId).catch(() => {})
+  }
 }
 
 const handleFileSelect = () => {
@@ -372,6 +422,14 @@ const playAudio = async (message: Message) => {
     ElMessage.error('语音播放失败')
   }
 }
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
 </script>
 
 <style scoped lang="scss">
@@ -467,10 +525,35 @@ const playAudio = async (message: Message) => {
   word-break: break-word;
 }
 
-.msg-time {
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.message-mine .msg-meta {
+  justify-content: flex-end;
+}
+
+.msg-time,
+.msg-status {
   font-size: 11px;
   color: var(--text-placeholder);
-  margin-top: 2px;
+}
+
+.status-failed {
+  color: var(--danger-color);
+}
+
+.status-read {
+  color: var(--primary-color);
+}
+
+.retry-btn {
+  height: 18px;
+  padding: 0;
+  font-size: 11px;
 }
 
 .chat-input-area {

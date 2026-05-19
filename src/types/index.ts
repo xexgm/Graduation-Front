@@ -19,6 +19,24 @@ export interface User {
   updateTime: number
 }
 
+export type AdminApplicationStatus = 'APPROVED' | 1
+
+export interface AdminApplication {
+  id: number
+  userId: number
+  username?: string
+  nickname?: string
+  avatarUrl?: string
+  reason?: string
+  status: AdminApplicationStatus
+  approvedTime?: string
+  createTime?: string
+}
+
+export interface AdminApplicationRequest {
+  reason: string
+}
+
 // 登录注册表单
 export interface LoginForm {
   username: string
@@ -66,6 +84,8 @@ export interface CompleteMessage {
   toId: number         // 接收方ID (聊天室ID或用户ID)
   content: string      // 消息内容
   timeStamp: number    // 发送时间戳
+  msgId?: number        // 服务端消息ID，用于 ACK/已读回执
+  clientMsgId?: string  // 客户端消息ID，用于匹配本地临时消息
 }
 
 export interface UploadFileInfo {
@@ -87,6 +107,8 @@ export interface AudioMessagePayload extends UploadFileInfo {
 // 聊天相关类型
 export interface Message {
   id: string
+  msgId?: number
+  clientMsgId?: string
   senderId: string
   receiverId?: string
   roomId?: string
@@ -95,7 +117,9 @@ export interface Message {
   fileInfo?: FileMessagePayload
   audioInfo?: AudioMessagePayload
   timestamp: Date
-  status: 'sending' | 'sent' | 'delivered' | 'read'
+  status: 'sending' | 'failed' | 'sent' | 'delivered' | 'read'
+  deliveredTime?: Date
+  readTime?: Date
 }
 
 export interface ChatRoom {
@@ -149,6 +173,33 @@ export interface Friend {
   relationStatus: number; // 0=Normal, 1=Blocked
 }
 
+export type FriendRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED' | 0 | 1 | 2 | 3
+
+export interface FriendRequest {
+  id: number
+  senderId: number
+  senderUsername?: string
+  senderNickname?: string
+  senderAvatarUrl?: string
+  receiverId: number
+  receiverUsername?: string
+  receiverNickname?: string
+  receiverAvatarUrl?: string
+  message?: string
+  status: FriendRequestStatus
+  handleTime?: string
+  createTime?: string
+}
+
+export interface FriendRequestCreateRequest {
+  friendId: number
+  message?: string
+}
+
+export interface FriendRequestRejectRequest {
+  reason?: string
+}
+
 /**
  * Response structure for the friend list API.
  */
@@ -164,11 +215,26 @@ export interface FriendListResponse {
  */
 export interface PrivateMessageHistory {
   msgId: number;
+  clientMsgId?: string;
   senderId: number;
   receiverId: number;
+  messageType?: number;
   content: string;
+  status?: number | 'SENT' | 'DELIVERED' | 'READ';
   isRead: number;      // 0=Unread, 1=Read
+  deliveredTime?: string;
+  readTime?: string;
   createTime: string;  // ISO 8601 string or format "YYYY-MM-DD HH:mm:ss"
+}
+
+export interface PrivateReadRequest {
+  friendId: number
+  maxMsgId: number
+}
+
+export interface PrivateUnreadCount {
+  friendId: number
+  unreadCount: number
 }
 
 /**

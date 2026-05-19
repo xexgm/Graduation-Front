@@ -109,6 +109,37 @@
       </div>
 
       <div class="settings-section">
+        <h2>管理员申请</h2>
+        <div class="settings-card">
+          <div v-if="isAdmin" class="admin-application-status">
+            <div class="setting-title">你已是管理员</div>
+            <div class="setting-desc">可以创建、下线和删除聊天室。</div>
+          </div>
+          <div v-else-if="myAdminApplication" class="admin-application-status">
+            <div class="setting-title">申请状态：{{ formatAdminApplicationStatus(myAdminApplication.status) }}</div>
+            <div class="setting-desc">提交理由：{{ myAdminApplication.reason || '未填写' }}</div>
+          </div>
+          <el-form v-else :model="adminApplicationForm" label-width="90px">
+            <el-form-item label="申请理由">
+              <el-input
+                v-model="adminApplicationForm.reason"
+                type="textarea"
+                :rows="3"
+                maxlength="500"
+                show-word-limit
+                placeholder="例如：希望协助管理聊天室"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="submittingAdminApplication" @click="submitAdminApplication">
+                提交申请
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <h2>账户</h2>
         <div class="settings-card">
           <el-button type="danger" plain @click="handleLogout" class="logout-btn">
@@ -168,7 +199,8 @@ import { ArrowLeft, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useChatStore } from '@/stores/chat'
-// import { userApi } from '@/api' // 暂时移除，等待后端实现
+import { adminApplicationApi } from '@/api'
+import type { AdminApplication, AdminApplicationStatus } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -177,6 +209,8 @@ const chatStore = useChatStore()
 
 const avatarInputRef = ref<HTMLInputElement>()
 const updating = ref(false)
+const myAdminApplication = ref<AdminApplication | null>(null)
+const submittingAdminApplication = ref(false)
 
 const profileForm = reactive({
   username: userStore.user?.username || '',
@@ -190,6 +224,10 @@ const settings = reactive({
   autoLogin: localStorage.getItem('remember') === 'true',
   showOnlineStatus: true,
   readReceipts: true
+})
+
+const adminApplicationForm = reactive({
+  reason: ''
 })
 
 // 管理员判定：role === 1
@@ -273,6 +311,51 @@ const handleLogout = async () => {
   }
 }
 
+const formatAdminApplicationStatus = (status: AdminApplicationStatus) => {
+  if (status === 'APPROVED' || status === 1) return '已通过'
+  return String(status)
+}
+
+const fetchMyAdminApplication = async () => {
+  if (isAdmin.value) {
+    return
+  }
+
+  try {
+    const response = await adminApplicationApi.getMyApplication()
+    myAdminApplication.value = response.data || null
+  } catch (error) {
+    console.warn('获取管理员申请状态失败:', error)
+  }
+}
+
+const submitAdminApplication = async () => {
+  const reason = adminApplicationForm.reason.trim()
+  if (!reason) {
+    ElMessage.warning('请填写申请理由')
+    return
+  }
+
+  submittingAdminApplication.value = true
+  try {
+    const response = await adminApplicationApi.apply({ reason })
+    if (response.code === 200) {
+      myAdminApplication.value = response.data || null
+      userStore.updateUser({ role: 1 })
+      if (userStore.user?.userId) {
+        try {
+          await userStore.fetchUserInfo(userStore.user.userId)
+        } catch {}
+      }
+      ElMessage.success(response.message || '申请已通过，你已成为管理员')
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '提交管理员申请失败')
+  } finally {
+    submittingAdminApplication.value = false
+  }
+}
+
 const handleCreateRoom = async () => {
   try {
     const created = await chatStore.createRoom(roomForm.roomName, roomForm.description, roomForm.roomType)
@@ -307,6 +390,7 @@ const handleDelete = async (room: { id: string }) => {
 }
 
 onMounted(async () => {
+  await fetchMyAdminApplication()
   if (!chatStore.rooms.length) {
     try { await chatStore.fetchRooms() } catch {}
   }
@@ -409,6 +493,12 @@ onMounted(async () => {
     font-size: 13px;
     color: var(--text-secondary);
   }
+}
+
+.admin-application-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .logout-btn {
