@@ -104,6 +104,26 @@ export interface AudioMessagePayload extends UploadFileInfo {
   duration: number
 }
 
+export type VoiceTranscriptionStatus = 'PROCESSING' | 'SUCCESS' | 'FAILED' | 0 | 1 | 2
+
+export interface VoiceTranscribeRequest {
+  fileId: number
+}
+
+export interface VoiceTranscribeResponse {
+  fileId: number
+  text?: string
+  cached?: boolean
+  status: VoiceTranscriptionStatus
+}
+
+export interface VoiceTranscriptionState {
+  loading: boolean
+  text?: string
+  error?: string
+  expanded?: boolean
+}
+
 // 聊天相关类型
 export interface Message {
   id: string

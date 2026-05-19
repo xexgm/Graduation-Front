@@ -41,9 +41,26 @@
                 </div>
               </template>
               <template v-else-if="msg.type === 'audio'">
-                <div class="private-audio-card" @click="playAudio(msg)">
-                  <el-icon><VideoPlay /></el-icon>
-                  <span>{{ getAudioDuration(msg) }}</span>
+                <div class="private-audio-wrap">
+                  <div class="private-audio-row">
+                    <div class="private-audio-card" @click="playAudio(msg)">
+                      <el-icon><VideoPlay /></el-icon>
+                      <span>{{ getAudioDuration(msg) }}</span>
+                    </div>
+                    <button
+                      class="transcription-pill"
+                      :disabled="getTranscriptionState(msg)?.loading"
+                      @click.stop="toggleTranscription(msg)"
+                    >
+                      {{ getTranscriptionButtonText(msg) }}
+                    </button>
+                  </div>
+                  <div v-if="getTranscriptionState(msg)?.expanded && getTranscriptionState(msg)?.text" class="transcription-text">
+                    {{ getTranscriptionState(msg)?.text }}
+                  </div>
+                  <div v-else-if="getTranscriptionState(msg)?.expanded && getTranscriptionState(msg)?.error" class="transcription-error">
+                    {{ getTranscriptionState(msg)?.error }}
+                  </div>
                 </div>
               </template>
               <template v-else>
@@ -110,6 +127,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useFriendStore } from '@/stores/friend'
 import { useUserStore } from '@/stores/user'
+import { useVoiceTranscriptionStore } from '@/stores/voiceTranscription'
 import { fileApi } from '@/api'
 import {
   buildAudioMessageContent,
@@ -126,6 +144,7 @@ import dayjs from 'dayjs'
 
 const friendStore = useFriendStore()
 const userStore = useUserStore()
+const voiceTranscriptionStore = useVoiceTranscriptionStore()
 
 const inputContent = ref('')
 const scrollbarRef = ref()
@@ -200,6 +219,10 @@ const getAudioInfo = (message: Message) => {
 
 const getAudioDuration = (message: Message) => {
   return formatAudioDuration(getAudioInfo(message)?.duration || 0)
+}
+
+const getTranscriptionState = (message: Message) => {
+  return voiceTranscriptionStore.getState(getAudioInfo(message)?.fileId)
 }
 
 const closeChat = () => {
@@ -423,6 +446,20 @@ const playAudio = async (message: Message) => {
   }
 }
 
+const toggleTranscription = async (message: Message) => {
+  const audioInfo = getAudioInfo(message)
+  if (!audioInfo?.fileId) {
+    ElMessage.error('语音信息无效，无法转文字')
+    return
+  }
+
+  await voiceTranscriptionStore.toggle(audioInfo.fileId)
+}
+
+const getTranscriptionButtonText = (message: Message) => {
+  return voiceTranscriptionStore.getButtonText(getAudioInfo(message)?.fileId)
+}
+
 onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
@@ -628,5 +665,54 @@ onUnmounted(() => {
   .el-icon {
     font-size: 18px;
   }
+}
+
+.private-audio-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.private-audio-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transcription-pill {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  line-height: 24px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.transcription-pill:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.transcription-pill:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.transcription-text,
+.transcription-error {
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: var(--radius-base);
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.transcription-error {
+  color: var(--danger-color);
 }
 </style>

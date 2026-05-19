@@ -16,7 +16,9 @@ import type {
   FriendRequestCreateRequest,
   FriendRequestRejectRequest,
   PrivateReadRequest,
-  PrivateUnreadCount
+  PrivateUnreadCount,
+  VoiceTranscribeRequest,
+  VoiceTranscribeResponse
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
@@ -302,6 +304,11 @@ export const fileApi = {
 
   download: (fileId: number): Promise<Blob> =>
     api.get(`/file/download/${fileId}`, { responseType: 'blob' }).then(res => res.data)
+}
+
+export const voiceApi = {
+  transcribe: (data: VoiceTranscribeRequest): Promise<ApiResponse<VoiceTranscribeResponse>> =>
+    api.post('/voice/transcribe', data, { timeout: 30000 }).then(res => res.data)
 }
 
 // 工具方法
