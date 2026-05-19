@@ -112,8 +112,9 @@
         <h2>管理员申请</h2>
         <div class="settings-card">
           <div v-if="isAdmin" class="admin-application-status">
-            <div class="setting-title">你已是管理员</div>
-            <div class="setting-desc">可以创建、下线和删除聊天室。</div>
+            <div class="setting-title">你已是{{ isSuperAdmin ? '高级管理员' : '管理员' }}</div>
+            <div class="setting-desc">可以进入管理员后台进行管理操作。</div>
+            <el-button type="primary" @click="router.push('/admin')">进入管理员后台</el-button>
           </div>
           <div v-else-if="myAdminApplication" class="admin-application-status">
             <div class="setting-title">申请状态：{{ formatAdminApplicationStatus(myAdminApplication.status) }}</div>
@@ -230,8 +231,9 @@ const adminApplicationForm = reactive({
   reason: ''
 })
 
-// 管理员判定：role === 1
-const isAdmin = computed(() => userStore.user?.role === 1)
+// 管理员判定：role === 1 或 2
+const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
+const isSuperAdmin = computed(() => userStore.user?.role === 2)
 
 // 聊天室表单
 const roomForm = reactive<{ roomName: string; description?: string; roomType: 'PUBLIC_ROOM' | 'PRIVATE_ROOM' }>({
@@ -312,7 +314,10 @@ const handleLogout = async () => {
 }
 
 const formatAdminApplicationStatus = (status: AdminApplicationStatus) => {
+  if (status === 'PENDING' || status === 0) return '待高级管理员审核'
   if (status === 'APPROVED' || status === 1) return '已通过'
+  if (status === 'REJECTED' || status === 2) return '已拒绝'
+  if (status === 'CANCELED' || status === 3) return '已取消'
   return String(status)
 }
 
@@ -341,13 +346,7 @@ const submitAdminApplication = async () => {
     const response = await adminApplicationApi.apply({ reason })
     if (response.code === 200) {
       myAdminApplication.value = response.data || null
-      userStore.updateUser({ role: 1 })
-      if (userStore.user?.userId) {
-        try {
-          await userStore.fetchUserInfo(userStore.user.userId)
-        } catch {}
-      }
-      ElMessage.success(response.message || '申请已通过，你已成为管理员')
+      ElMessage.success(response.message || '申请已提交，等待高级管理员审核')
     }
   } catch (error: any) {
     ElMessage.error(error?.message || '提交管理员申请失败')

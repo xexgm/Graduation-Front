@@ -27,6 +27,9 @@
       </div>
     </div>
     <div class="nav-bottom">
+      <div v-if="isAdmin" class="nav-item" title="管理员后台" @click="router.push('/admin')">
+        <el-icon><Management /></el-icon>
+      </div>
       <div class="nav-item" title="设置" @click="router.push('/settings')">
         <el-icon><Setting /></el-icon>
       </div>
@@ -35,8 +38,10 @@
 </template>
 
 <script setup lang="ts">
-import { ChatDotRound, Grid, Setting, User } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { ChatDotRound, Grid, Management, Setting, User } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 defineProps<{
   activeModule: 'conversation' | 'friend' | 'room'
@@ -47,6 +52,8 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const userStore = useUserStore()
+const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
 </script>
 
 <style scoped lang="scss">

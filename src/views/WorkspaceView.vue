@@ -17,9 +17,11 @@ import FriendModulePane from '@/components/workspace/FriendModulePane.vue'
 import RoomModulePane from '@/components/workspace/RoomModulePane.vue'
 import { useChatStore } from '@/stores/chat'
 import { useFriendStore } from '@/stores/friend'
+import { useSystemNoticeStore } from '@/stores/systemNotice'
 
 const chatStore = useChatStore()
 const friendStore = useFriendStore()
+const systemNoticeStore = useSystemNoticeStore()
 const activeModule = ref<'conversation' | 'friend' | 'room'>('conversation')
 
 onMounted(async () => {
@@ -36,11 +38,13 @@ onMounted(async () => {
   }
 
   friendStore.initFriendWebSocket()
+  systemNoticeStore.initSystemNoticeWebSocket()
   friendStore.startFriendPolling(5000)
 })
 
 onUnmounted(() => {
   friendStore.stopFriendPolling()
+  systemNoticeStore.stopSystemNoticeWebSocket()
 })
 </script>
 

@@ -15,6 +15,9 @@ export type WebSocketEvents = {
   'notification:friend-request': CompleteMessage;
   'notification:friend-accepted': CompleteMessage;
   'notification:friend-rejected': CompleteMessage;
+  'notification:system-notice': CompleteMessage;
+  'notification:chatroom-notice': CompleteMessage;
+  'notification:chatroom-status': CompleteMessage;
 };
 
 class WebSocketService {
@@ -103,6 +106,18 @@ class WebSocketService {
 
         if (message.appId === 2 && message.messageType === 9) {
           this.emitter.emit('message:private-read-ack', message)
+        }
+
+        if (message.appId === 2 && message.messageType === 10) {
+          this.emitter.emit('notification:system-notice', message)
+        }
+
+        if (message.appId === 1 && message.messageType === 5) {
+          this.emitter.emit('notification:chatroom-notice', message)
+        }
+
+        if (message.appId === 1 && message.messageType === 6) {
+          this.emitter.emit('notification:chatroom-status', message)
         }
       }
 

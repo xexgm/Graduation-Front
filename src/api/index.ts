@@ -18,7 +18,18 @@ import type {
   PrivateReadRequest,
   PrivateUnreadCount,
   VoiceTranscribeRequest,
-  VoiceTranscribeResponse
+  VoiceTranscribeResponse,
+  AdminApplicationQuery,
+  AdminReviewRequest,
+  AdminUser,
+  AdminUserQuery,
+  AdminBanRequest,
+  AdminChatRoom,
+  AdminChatRoomQuery,
+  AdminNotice,
+  AdminNoticeCreateRequest,
+  AdminNoticeQuery,
+  PageResult
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
@@ -268,7 +279,58 @@ export const adminApplicationApi = {
     api.post('/admin/application', data).then(res => res.data),
 
   getMyApplication: (): Promise<ApiResponse<AdminApplication | null>> =>
-    api.get('/admin/application/my').then(res => res.data)
+    api.get('/admin/application/my').then(res => res.data),
+
+  list: (params: AdminApplicationQuery): Promise<ApiResponse<PageResult<AdminApplication>>> =>
+    api.get('/admin/applications/list', { params }).then(res => res.data),
+
+  approve: (id: number, data: AdminReviewRequest = {}): Promise<ApiResponse<AdminApplication>> =>
+    api.post(`/admin/applications/${id}/approve`, data).then(res => res.data),
+
+  reject: (id: number, data: AdminReviewRequest = {}): Promise<ApiResponse<AdminApplication>> =>
+    api.post(`/admin/applications/${id}/reject`, data).then(res => res.data)
+}
+
+export const adminUserApi = {
+  list: (params: AdminUserQuery): Promise<ApiResponse<PageResult<AdminUser>>> =>
+    api.get('/admin/users', { params }).then(res => res.data),
+
+  get: (userId: number): Promise<ApiResponse<AdminUser>> =>
+    api.get(`/admin/users/${userId}`).then(res => res.data),
+
+  ban: (userId: number, data: AdminBanRequest = {}): Promise<ApiResponse<null>> =>
+    api.post(`/admin/users/${userId}/ban`, data).then(res => res.data),
+
+  unban: (userId: number): Promise<ApiResponse<null>> =>
+    api.post(`/admin/users/${userId}/unban`).then(res => res.data)
+}
+
+export const adminChatRoomApi = {
+  list: (params: AdminChatRoomQuery): Promise<ApiResponse<PageResult<AdminChatRoom>>> =>
+    api.get('/admin/chatrooms', { params }).then(res => res.data),
+
+  get: (roomId: number): Promise<ApiResponse<AdminChatRoom>> =>
+    api.get(`/admin/chatrooms/${roomId}`).then(res => res.data),
+
+  ban: (roomId: number, data: { reason?: string } = {}): Promise<ApiResponse<null>> =>
+    api.post(`/admin/chatrooms/${roomId}/ban`, data).then(res => res.data),
+
+  restore: (roomId: number): Promise<ApiResponse<null>> =>
+    api.post(`/admin/chatrooms/${roomId}/restore`).then(res => res.data),
+
+  delete: (roomId: number): Promise<ApiResponse<null>> =>
+    api.delete(`/admin/chatrooms/${roomId}`).then(res => res.data)
+}
+
+export const adminNoticeApi = {
+  create: (data: AdminNoticeCreateRequest): Promise<ApiResponse<AdminNotice>> =>
+    api.post('/admin/notices', data).then(res => res.data),
+
+  list: (params: AdminNoticeQuery): Promise<ApiResponse<PageResult<AdminNotice>>> =>
+    api.get('/admin/notices', { params }).then(res => res.data),
+
+  revoke: (noticeId: number): Promise<ApiResponse<null>> =>
+    api.post(`/admin/notices/${noticeId}/revoke`).then(res => res.data)
 }
 
 export const messageApi = {

@@ -19,7 +19,9 @@ export interface User {
   updateTime: number
 }
 
-export type AdminApplicationStatus = 'APPROVED' | 1
+export type UserRole = 0 | 1 | 2
+export type UserStatus = 0 | 1
+export type AdminApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED' | 0 | 1 | 2 | 3
 
 export interface AdminApplication {
   id: number
@@ -29,6 +31,9 @@ export interface AdminApplication {
   avatarUrl?: string
   reason?: string
   status: AdminApplicationStatus
+  reviewerId?: number
+  reviewComment?: string
+  reviewedTime?: string
   approvedTime?: string
   createTime?: string
 }
@@ -88,6 +93,20 @@ export interface CompleteMessage {
   clientMsgId?: string  // 客户端消息ID，用于匹配本地临时消息
 }
 
+export interface SystemNoticePayload {
+  type?: 'SYSTEM_NOTICE' | 'CHAT_ROOM_SYSTEM_NOTICE'
+  noticeId?: number
+  title?: string
+  content?: string
+}
+
+export interface ChatRoomStatusNoticePayload {
+  type?: 'CHAT_ROOM_STATUS_NOTICE'
+  roomId?: number
+  status?: ChatRoomStatus | string | number
+  message?: string
+}
+
 export interface UploadFileInfo {
   fileId: number
   fileName: string
@@ -122,6 +141,95 @@ export interface VoiceTranscriptionState {
   text?: string
   error?: string
   expanded?: boolean
+}
+
+export interface PageResult<T> {
+  records: T[]
+  total: number
+  size: number
+  current: number
+  pages?: number
+}
+
+export interface AdminUser {
+  userId: number
+  username: string
+  nickname?: string
+  avatarUrl?: string
+  signature?: string
+  role: UserRole
+  status: UserStatus
+  createTime?: string | number
+  updateTime?: string | number
+}
+
+export interface AdminUserQuery {
+  current?: number
+  size?: number
+  keyword?: string
+  role?: UserRole | ''
+  status?: UserStatus | ''
+}
+
+export interface AdminBanRequest {
+  reason?: string
+}
+
+export interface AdminApplicationQuery {
+  status?: AdminApplicationStatus | ''
+  current?: number
+  size?: number
+}
+
+export interface AdminReviewRequest {
+  reviewComment?: string
+}
+
+export interface AdminChatRoom {
+  roomId: number
+  roomName: string
+  description?: string
+  ownerId?: number
+  ownerUsername?: string
+  ownerNickname?: string
+  roomType?: ChatRoomType
+  status: ChatRoomStatus | number | string
+  createTimeStamp?: number
+  createTime?: string
+  onlineCount?: number
+}
+
+export interface AdminChatRoomQuery {
+  current?: number
+  size?: number
+  keyword?: string
+  status?: ChatRoomStatus | number | ''
+}
+
+export interface AdminNotice {
+  noticeId: number
+  title: string
+  content: string
+  targetType: 1 | 2 | 'ALL_USERS' | 'ALL_CHATROOMS'
+  publisherId?: number
+  publisherUsername?: string
+  status: 0 | 1 | 'REVOKED' | 'PUBLISHED'
+  publishTime?: string
+  createTime?: string
+  updateTime?: string
+}
+
+export interface AdminNoticeCreateRequest {
+  title: string
+  content: string
+  targetType: 1 | 2
+}
+
+export interface AdminNoticeQuery {
+  current?: number
+  size?: number
+  targetType?: 1 | 2 | ''
+  status?: 0 | 1 | ''
 }
 
 // 聊天相关类型
