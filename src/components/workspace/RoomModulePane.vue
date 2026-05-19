@@ -67,7 +67,7 @@ const router = useRouter()
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
-const isAdmin = computed(() => userStore.user?.role === 1)
+const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
 const createForm = reactive<{
   roomName: string
   roomType: 'PUBLIC_ROOM' | 'PRIVATE_ROOM'
