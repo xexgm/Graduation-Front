@@ -402,7 +402,9 @@ onMounted(async () => {
   margin: 0 auto;
   padding: 20px;
   background: var(--bg-lighter);
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .settings-header {

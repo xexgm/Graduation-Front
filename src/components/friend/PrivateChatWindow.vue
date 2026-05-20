@@ -239,15 +239,15 @@ const scrollToBottom = async () => {
   }
 }
 
-watch(messages, () => {
+watch(() => messages.value.length, () => {
   scrollToBottom()
-}, { deep: true })
+})
 
-watch(messages, async () => {
+watch(() => messages.value.length, async () => {
   if (friendStore.activeFriendId !== null) {
     await friendStore.markConversationRead(friendStore.activeFriendId)
   }
-}, { deep: true, flush: 'post' })
+}, { flush: 'post' })
 
 const handleSend = async () => {
   const content = inputContent.value.trim()

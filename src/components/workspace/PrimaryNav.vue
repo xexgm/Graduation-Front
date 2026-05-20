@@ -1,5 +1,8 @@
 <template>
   <div class="primary-nav">
+    <div class="brand-dot" aria-label="光芒IM">
+      <span class="minimal-logo"></span>
+    </div>
     <div class="nav-top">
       <div
         class="nav-item"
@@ -58,14 +61,62 @@ const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
 
 <style scoped lang="scss">
 .primary-nav {
-  width: 64px;
-  border-right: 1px solid var(--border-light);
+  width: 72px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  background: var(--bg-white);
+  padding: 14px 0;
+  background: var(--workspace-nav);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(22px);
+}
+
+.brand-dot {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  box-shadow: 0 14px 30px var(--workspace-glow);
+}
+
+.minimal-logo {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: -3px;
+    bottom: 1px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid rgba(255, 255, 255, 0.92);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.92);
+    transform: rotate(10deg);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
+    transform: translate(-50%, -50%);
+  }
 }
 
 .nav-top,
@@ -76,18 +127,22 @@ const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
 }
 
 .nav-item {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid transparent;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  background: var(--bg-light);
+  background: var(--workspace-panel-muted);
+  transition: var(--transition-all);
 
   &.active {
     color: #fff;
-    background: var(--primary-color);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+    box-shadow: 0 12px 26px var(--workspace-glow);
   }
 
   &.disabled {
@@ -97,6 +152,13 @@ const isAdmin = computed(() => [1, 2].includes(Number(userStore.user?.role)))
 
   &:not(.disabled) {
     cursor: pointer;
+
+    &:hover {
+      color: var(--brand-primary);
+      border-color: var(--workspace-border);
+      transform: translateY(-1px);
+      background: var(--workspace-card-hover);
+    }
   }
 }
 </style>

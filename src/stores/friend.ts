@@ -18,6 +18,7 @@ export const useFriendStore = defineStore('friend', () => {
   let isFriendWebSocketInitialized = false
   let friendPollingTimer: number | null = null
   const pendingAckTimers: Record<string, number> = {}
+  const lastReadMaxMsgIds: Record<number, number> = {}
 
   function generateClientMsgId(uid: number) {
     return `${uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -33,6 +34,29 @@ export const useFriendStore = defineStore('friend', () => {
     if (rawStatus === 'READ' || rawStatus === 3 || rawStatus === '3' || isRead === 1) return 'read'
     if (rawStatus === 'DELIVERED' || rawStatus === 2 || rawStatus === '2') return 'delivered'
     return 'sent'
+  }
+
+  function toPrivateMessage(record: any): Message {
+    const fileInfo = parseFileMessageContent(record.content) || undefined
+    const audioInfo = parseAudioMessageContent(record.content) || undefined
+    const messageType = Number(record.messageType || 1)
+
+    return {
+      id: String(record.msgId),
+      msgId: record.msgId,
+      clientMsgId: record.clientMsgId,
+      senderId: String(record.senderId),
+      receiverId: String(record.receiverId),
+      roomId: '',
+      content: record.content,
+      type: audioInfo || messageType === 3 ? 'audio' : fileInfo || messageType === 2 ? 'file' : 'text',
+      fileInfo,
+      audioInfo,
+      timestamp: new Date(record.createTime),
+      status: normalizePrivateStatus(record.status, record.isRead),
+      deliveredTime: record.deliveredTime ? new Date(record.deliveredTime) : undefined,
+      readTime: record.readTime ? new Date(record.readTime) : undefined
+    }
   }
 
   function getConversationMessages(friendId: number) {
@@ -196,27 +220,7 @@ export const useFriendStore = defineStore('friend', () => {
       const response = await messageApi.getPrivateHistory(userStore.user.userId, normalizedFriendId)
       if (response.code === 200 && response.data && response.data.records) {
         // Convert history records to Message interface
-        const historyMessages: Message[] = response.data.records.map(record => {
-          const fileInfo = parseFileMessageContent(record.content) || undefined
-          const audioInfo = parseAudioMessageContent(record.content) || undefined
-          const messageType = Number(record.messageType || 1)
-          return {
-            id: String(record.msgId),
-            msgId: record.msgId,
-            clientMsgId: record.clientMsgId,
-            senderId: String(record.senderId),
-            receiverId: String(record.receiverId),
-            roomId: '', // Optional for private chat
-            content: record.content,
-            type: audioInfo || messageType === 3 ? 'audio' : fileInfo || messageType === 2 ? 'file' : 'text',
-            fileInfo,
-            audioInfo,
-            timestamp: new Date(record.createTime),
-            status: normalizePrivateStatus(record.status, record.isRead),
-            deliveredTime: record.deliveredTime ? new Date(record.deliveredTime) : undefined,
-            readTime: record.readTime ? new Date(record.readTime) : undefined
-          }
-        })
+        const historyMessages: Message[] = response.data.records.map(toPrivateMessage)
         
         // Sort ascending by timestamp (oldest first)
         historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
@@ -226,6 +230,32 @@ export const useFriendStore = defineStore('friend', () => {
     } catch (error) {
       console.error(`Failed to fetch history for friend ${normalizedFriendId}:`, error)
     }
+  }
+
+  async function fetchPrivateLatestMessages() {
+    const userStore = useUserStore()
+    const user = userStore.user
+    if (!user) return
+
+    await Promise.allSettled(friends.value.map(async (friend) => {
+      const friendId = Number(friend.userId)
+      if (!Number.isFinite(friendId) || friendId <= 0) return
+
+      const response = await messageApi.getPrivateHistory(user.userId, friendId, 1, 1)
+      const latestRecord = response.data?.records?.[0]
+      if (!latestRecord) return
+
+      const latestMessage = toPrivateMessage(latestRecord)
+      const list = getConversationMessages(friendId)
+      const exists = list.some(message =>
+        (latestMessage.msgId && message.msgId === latestMessage.msgId) ||
+        (latestMessage.clientMsgId && message.clientMsgId === latestMessage.clientMsgId)
+      )
+      if (!exists) {
+        list.push(latestMessage)
+        list.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      }
+    }))
   }
 
   async function sendPrivateMessage(content: string, type: Message['type'] = 'text', clientMsgId?: string) {
@@ -385,16 +415,23 @@ export const useFriendStore = defineStore('friend', () => {
     const maxMsgId = Math.max(
       0,
       ...list
-        .filter(message => String(message.senderId) === String(friendId) && message.msgId && message.status !== 'read')
+        .filter(message => String(message.senderId) === String(friendId) && message.msgId)
         .map(message => Number(message.msgId))
     )
     if (!maxMsgId) return
+    if ((lastReadMaxMsgIds[friendId] || 0) >= maxMsgId) return
 
+    const previousUnreadCount = unreadCounts.value[friendId] || 0
+    unreadCounts.value[friendId] = 0
     webSocketService.sendPrivateReadAck(user.userId, token, friendId, maxMsgId)
     try {
       await messageApi.markPrivateRead({ friendId, maxMsgId })
     } catch (error) {
       console.warn('HTTP mark private read failed:', error)
+      if (previousUnreadCount > 0) {
+        unreadCounts.value[friendId] = previousUnreadCount
+      }
+      return
     }
 
     list.forEach(message => {
@@ -403,7 +440,8 @@ export const useFriendStore = defineStore('friend', () => {
         message.readTime = new Date()
       }
     })
-    unreadCounts.value[friendId] = 0
+    lastReadMaxMsgIds[friendId] = maxMsgId
+    await fetchUnreadCounts()
   }
 
   async function fetchUnreadCounts() {
@@ -455,9 +493,6 @@ export const useFriendStore = defineStore('friend', () => {
     }
 
     activeFriendId.value = normalizedFriendId
-    if (unreadCounts.value[normalizedFriendId]) {
-      unreadCounts.value[normalizedFriendId] = 0
-    }
     await fetchPrivateHistory(normalizedFriendId)
     await markConversationRead(normalizedFriendId)
   }
@@ -507,6 +542,7 @@ export const useFriendStore = defineStore('friend', () => {
     activeFriendId,
     fetchFriends,
     fetchUnreadCounts,
+    fetchPrivateLatestMessages,
     addFriend,
     sendFriendRequest,
     fetchReceivedRequests,

@@ -1,11 +1,32 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Conversation } from '@/types'
+import type { Conversation, Message } from '@/types'
 import { useChatStore } from './chat'
 import { useFriendStore } from './friend'
+import { formatAudioDuration, parseAudioMessageContent, parseFileMessageContent } from '@/utils/fileMessage'
 
 function toConversationKey(type: 'private' | 'room', id: number): string {
   return `${type}:${id}`
+}
+
+function formatLastMessage(message?: Message): string | undefined {
+  if (!message) return undefined
+
+  const audioInfo = message.audioInfo || parseAudioMessageContent(message.content)
+  if (message.type === 'audio' || audioInfo) {
+    return `语音消息 ${formatAudioDuration(audioInfo?.duration || 0)}`
+  }
+
+  const fileInfo = message.fileInfo || parseFileMessageContent(message.content)
+  if (message.type === 'file' || fileInfo) {
+    return fileInfo?.fileName ? `文件：${fileInfo.fileName}` : '文件消息'
+  }
+
+  if (message.type === 'image') {
+    return '图片消息'
+  }
+
+  return message.content
 }
 
 export const useConversationStore = defineStore('conversation', () => {
@@ -24,7 +45,7 @@ export const useConversationStore = defineStore('conversation', () => {
         conversationType: 'private',
         title: friend.nickname || friend.username,
         avatar: friend.avatarUrl,
-        lastMessage: last?.content,
+        lastMessage: formatLastMessage(last),
         lastMessageTime: last?.timestamp,
         unreadCount: friendStore.unreadCounts[friendId] || 0,
         friendId
@@ -40,7 +61,7 @@ export const useConversationStore = defineStore('conversation', () => {
         conversationType: 'room',
         title: room.name || `聊天室 ${room.id}`,
         avatar: room.avatar,
-        lastMessage: room.lastMessage?.content,
+        lastMessage: formatLastMessage(room.lastMessage),
         lastMessageTime: room.lastMessage?.timestamp,
         unreadCount: room.unreadCount || 0,
         roomId

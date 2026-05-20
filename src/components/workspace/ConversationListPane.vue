@@ -81,49 +81,69 @@ const refreshAll = async () => {
 
 <style scoped lang="scss">
 .conversation-pane {
-  width: 320px;
-  border-right: 1px solid var(--border-light);
-  background: var(--bg-white);
+  width: 330px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 24px;
+  background: var(--workspace-panel);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .pane-header {
-  padding: 14px 12px;
+  padding: 18px 16px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--workspace-border);
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 .search-wrap {
-  padding: 10px 12px;
+  padding: 12px 14px;
+
+  :deep(.el-input__wrapper) {
+    border: 1px solid var(--workspace-border);
+    border-radius: 14px;
+    background: var(--workspace-input);
+    box-shadow: none;
+  }
 }
 
 .list-wrap {
   flex: 1;
-  padding: 0 8px 8px;
+  padding: 0 10px 12px;
 }
 
 .conversation-item {
   display: flex;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  background: transparent;
+  transition: var(--transition-all);
 
   &:hover {
-    background: var(--bg-light);
+    border-color: var(--workspace-border);
+    background: var(--workspace-card-hover);
+    transform: translateY(-1px);
   }
 
   &.active {
-    background: var(--primary-light);
+    border-color: rgba(59, 130, 246, 0.24);
+    background: var(--workspace-card-active);
+    box-shadow: 0 12px 28px var(--workspace-glow);
   }
 }
 
@@ -142,6 +162,7 @@ const refreshAll = async () => {
 
 .name {
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .time {

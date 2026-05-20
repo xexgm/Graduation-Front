@@ -213,42 +213,51 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .module-pane {
-  width: 320px;
-  border-right: 1px solid var(--border-light);
-  background: var(--bg-white);
+  width: 330px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 24px;
+  background: var(--workspace-panel);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .pane-header {
-  padding: 14px 12px;
+  padding: 18px 16px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--workspace-border);
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 .list-wrap {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
 }
 
 .friend-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  transition: var(--transition-all);
 
   &:hover {
-    background: var(--bg-light);
+    border-color: var(--workspace-border);
+    background: var(--workspace-card-hover);
+    transform: translateY(-1px);
   }
 }
 
@@ -259,6 +268,7 @@ onMounted(() => {
 
 .name {
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .sub {
@@ -275,10 +285,10 @@ onMounted(() => {
 
 .request-card {
   margin-bottom: 12px;
-  padding: 10px;
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  background: var(--bg-lighter);
+  padding: 12px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 18px;
+  background: var(--workspace-panel-muted);
 }
 
 .request-header {
@@ -306,7 +316,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 0;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--workspace-border);
 }
 
 .request-meta {

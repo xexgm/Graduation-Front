@@ -118,42 +118,51 @@ const handleCreateRoom = async () => {
 
 <style scoped lang="scss">
 .module-pane {
-  width: 320px;
-  border-right: 1px solid var(--border-light);
-  background: var(--bg-white);
+  width: 330px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 24px;
+  background: var(--workspace-panel);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .pane-header {
-  padding: 14px 12px;
+  padding: 18px 16px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--workspace-border);
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 .list-wrap {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
 }
 
 .room-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 4px;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  margin-bottom: 8px;
+  transition: var(--transition-all);
 
   &:hover {
-    background: var(--bg-light);
+    border-color: var(--workspace-border);
+    background: var(--workspace-card-hover);
+    transform: translateY(-1px);
   }
 }
 
@@ -173,6 +182,7 @@ const handleCreateRoom = async () => {
 
 .name {
   font-weight: 600;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

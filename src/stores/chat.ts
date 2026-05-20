@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
 import type { ChatRoom, Message, CompleteMessage, BackendChatRoom, User } from '@/types'
-import { chatApi, authApi } from '@/api'
+import { chatApi, authApi, messageApi } from '@/api'
 import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
 
 let isWebSocketInitialized = false
@@ -19,6 +19,35 @@ export const useChatStore = defineStore('chat', () => {
   const currentRoom = computed(() => rooms.value.find(r => r.id === String(currentRoomId.value)) || null)
   const currentMessages = computed(() => (currentRoomId.value ? messages.value[currentRoomId.value] || [] : []))
   const unreadCount = computed(() => rooms.value.reduce((total, room) => total + room.unreadCount, 0))
+
+  function toChatRoomHistoryMessage(record: any, fallbackRoomId: number): Message {
+    const content = String(record.content || '')
+    const messageType = Number(record.messageType || 1)
+    const wsLikeMessage: CompleteMessage = {
+      appId: 1,
+      uid: Number(record.senderId || record.uid || 0),
+      token: '',
+      messageType,
+      toId: Number(record.roomId || fallbackRoomId),
+      content,
+      timeStamp: new Date(record.createTime || record.timeStamp || Date.now()).getTime()
+    }
+    const fileInfo = parseFileMessageContent(content) || undefined
+    const audioInfo = parseAudioMessageContent(content) || undefined
+
+    return {
+      id: String(record.msgId || `${wsLikeMessage.uid}-${wsLikeMessage.timeStamp}`),
+      msgId: record.msgId,
+      senderId: String(wsLikeMessage.uid),
+      roomId: String(wsLikeMessage.toId),
+      content,
+      type: resolveMessageType(wsLikeMessage),
+      fileInfo,
+      audioInfo,
+      timestamp: new Date(wsLikeMessage.timeStamp),
+      status: 'delivered'
+    }
+  }
 
   async function handleIncomingChatMessage(wsMessage: CompleteMessage) {
     if (wsMessage.content === null) return
@@ -251,6 +280,34 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function fetchRoomLatestMessages() {
+    await Promise.allSettled(rooms.value.map(async (room) => {
+      const roomId = Number(room.id)
+      if (!Number.isFinite(roomId)) return
+
+      const response = await messageApi.getChatRoomHistory(roomId, 1, 1)
+      const latestRecord = response.data?.records?.[0]
+      if (!latestRecord) return
+
+      const latestMessage = toChatRoomHistoryMessage(latestRecord, roomId)
+      const roomIdStr = String(roomId)
+      if (!messages.value[roomIdStr]) {
+        messages.value[roomIdStr] = []
+      }
+      const exists = messages.value[roomIdStr].some(message =>
+        (latestMessage.msgId && message.msgId === latestMessage.msgId) ||
+        message.id === latestMessage.id
+      )
+      if (!exists) {
+        messages.value[roomIdStr].push(latestMessage)
+        messages.value[roomIdStr].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      }
+
+      room.lastMessage = latestMessage
+      room.updatedAt = latestMessage.timestamp
+    }))
+  }
+
   // 用户信息缓存与获取
   function getUserById(userId: number): User | undefined {
     return userDirectory.value[userId]
@@ -329,6 +386,7 @@ export const useChatStore = defineStore('chat', () => {
     fetchRooms,
     setCurrentRoom,
     fetchRoomOnlineCount,
+    fetchRoomLatestMessages,
     leaveCurrentRoom,
     sendMessage,
     createRoom,
