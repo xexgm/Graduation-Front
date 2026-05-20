@@ -14,7 +14,7 @@
     </div>
 
     <el-scrollbar class="message-list" ref="scrollbarRef">
-      <div class="message-container">
+      <div ref="messageContainerRef" class="message-container">
         <div v-if="!messages || messages.length === 0" class="empty-messages">
           <el-empty description="暂无聊天记录，打个招呼吧！" :image-size="60" />
         </div>
@@ -93,6 +93,7 @@
             </div>
           </div>
         </div>
+        <div ref="bottomAnchorRef" class="bottom-anchor"></div>
       </div>
     </el-scrollbar>
 
@@ -157,6 +158,8 @@ const router = useRouter()
 
 const inputContent = ref('')
 const scrollbarRef = ref()
+const messageContainerRef = ref<HTMLElement>()
+const bottomAnchorRef = ref<HTMLElement>()
 const fileInputRef = ref<HTMLInputElement>()
 const isRecording = ref(false)
 const recordingSeconds = ref(0)
@@ -175,6 +178,10 @@ const activeFriend = computed(() => {
 const messages = computed(() => {
   if (friendStore.activeFriendId === null) return []
   return friendStore.privateMessages[friendStore.activeFriendId] || []
+})
+
+const messageSignature = computed(() => {
+  return messages.value.map(message => `${message.id}:${message.msgId || ''}`).join('|')
 })
 
 const isMyMessage = (senderId: string | number) => {
@@ -249,19 +256,53 @@ const closeChat = () => {
 
 const scrollToBottom = async () => {
   await nextTick()
-  if (scrollbarRef.value) {
-    const wrap = scrollbarRef.value.wrapRef
+  const getScrollTarget = () => {
+    const wrap = scrollbarRef.value?.wrapRef
+    const anchorOffset = bottomAnchorRef.value?.offsetTop
+    return Math.max(anchorOffset || 0, wrap?.scrollHeight || 0, 999999)
+  }
+
+  const scroll = () => {
+    const target = getScrollTarget()
+    const wrap = scrollbarRef.value?.wrapRef
+    scrollbarRef.value?.setScrollTop?.(target)
     if (wrap) {
-      wrap.scrollTop = wrap.scrollHeight
+      wrap.scrollTop = target
     }
+    bottomAnchorRef.value?.scrollIntoView({ block: 'end' })
+  }
+
+  scroll()
+
+  let frameCount = 0
+  const retryByFrame = () => {
+    scroll()
+    frameCount++
+    if (frameCount < 12) {
+      requestAnimationFrame(retryByFrame)
+    }
+  }
+  requestAnimationFrame(retryByFrame)
+
+  const retryTimer = window.setInterval(scroll, 80)
+  window.setTimeout(() => clearInterval(retryTimer), 1000)
+
+  if (messageContainerRef.value && typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(() => scroll())
+    observer.observe(messageContainerRef.value)
+    window.setTimeout(() => observer.disconnect(), 1000)
   }
 }
 
-watch(() => messages.value.length, () => {
+watch(() => friendStore.activeFriendId, () => {
   scrollToBottom()
-})
+}, { flush: 'post' })
 
-watch(() => messages.value.length, async () => {
+watch(messageSignature, () => {
+  scrollToBottom()
+}, { flush: 'post' })
+
+watch(messageSignature, async () => {
   if (friendStore.activeFriendId !== null) {
     await friendStore.markConversationRead(friendStore.activeFriendId)
   }
@@ -534,6 +575,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.bottom-anchor {
+  height: 1px;
+  flex: 0 0 auto;
 }
 
 .message-item {

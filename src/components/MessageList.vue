@@ -1,6 +1,6 @@
 <template>
   <div class="message-list scrollbar-thin" ref="messageListRef">
-    <div class="messages-container">
+    <div ref="messageContainerRef" class="messages-container">
       <transition-group name="message" tag="div">
         <div
           v-for="message in groupedMessages"
@@ -113,6 +113,7 @@
           </div>
         </div>
       </div>
+      <div ref="bottomAnchorRef" class="bottom-anchor"></div>
     </div>
   </div>
 </template>
@@ -140,10 +141,16 @@ const chatStore = useChatStore()
 const voiceTranscriptionStore = useVoiceTranscriptionStore()
 const router = useRouter()
 const messageListRef = ref<HTMLElement>()
+const messageContainerRef = ref<HTMLElement>()
+const bottomAnchorRef = ref<HTMLElement>()
 
 const currentUserId = computed(() => String(userStore.user?.userId || ''))
 
 const messages = computed(() => chatStore.currentMessages)
+
+const messageSignature = computed(() => {
+  return messages.value.map(message => `${message.id}:${message.msgId || ''}`).join('|')
+})
 
 const typingUsers = computed(() => {
   // 暂时移除 typingUsers 功能，等待后端实现
@@ -319,18 +326,47 @@ const playAudio = async (message: Message) => {
 
 const scrollToBottom = async () => {
   await nextTick()
-  if (messageListRef.value) {
-    messageListRef.value.scrollTop = messageListRef.value.scrollHeight
+  const getScrollTarget = () => {
+    const anchorOffset = bottomAnchorRef.value?.offsetTop
+    return Math.max(anchorOffset || 0, messageListRef.value?.scrollHeight || 0, 999999)
+  }
+
+  const scroll = () => {
+    if (messageListRef.value) {
+      messageListRef.value.scrollTop = getScrollTarget()
+    }
+    bottomAnchorRef.value?.scrollIntoView({ block: 'end' })
+  }
+
+  scroll()
+
+  let frameCount = 0
+  const retryByFrame = () => {
+    scroll()
+    frameCount++
+    if (frameCount < 12) {
+      requestAnimationFrame(retryByFrame)
+    }
+  }
+  requestAnimationFrame(retryByFrame)
+
+  const retryTimer = window.setInterval(scroll, 80)
+  window.setTimeout(() => clearInterval(retryTimer), 1000)
+
+  if (messageContainerRef.value && typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(() => scroll())
+    observer.observe(messageContainerRef.value)
+    window.setTimeout(() => observer.disconnect(), 1000)
   }
 }
 
-watch(messages, () => {
+watch(messageSignature, () => {
   scrollToBottom()
-}, { deep: true })
+}, { flush: 'post' })
 
 watch(() => props.room.id, () => {
   scrollToBottom()
-})
+}, { flush: 'post' })
 
 onMounted(() => {
   scrollToBottom()
@@ -358,6 +394,11 @@ watch(messages, (list) => {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.bottom-anchor {
+  height: 1px;
+  flex: 0 0 auto;
 }
 
 .date-divider {

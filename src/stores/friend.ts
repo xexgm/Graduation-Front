@@ -5,6 +5,7 @@ import type { Friend, FriendRequest, Message, CompleteMessage, PrivateUnreadCoun
 import { friendApi, friendRequestApi, messageApi } from '@/api'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
+import { useAppSettingsStore } from './appSettings'
 import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
 import { toApiAssetUrl } from '@/utils/url'
 
@@ -330,6 +331,7 @@ export const useFriendStore = defineStore('friend', () => {
 
   async function handleIncomingPrivateMessage(wsMessage: CompleteMessage) {
     const userStore = useUserStore()
+    const appSettingsStore = useAppSettingsStore()
     
     // 过滤掉自己发送的回显消息
     if (userStore.user && String(wsMessage.uid) === String(userStore.user.userId)) {
@@ -372,6 +374,7 @@ export const useFriendStore = defineStore('friend', () => {
     // 如果当前并没有点开这个好友的窗口，增加未读数
     if (activeFriendId.value !== senderId) {
       unreadCounts.value[senderId] = (unreadCounts.value[senderId] || 0) + 1
+      appSettingsStore.playNotificationSound()
     } else {
       await markConversationRead(senderId)
     }
@@ -487,16 +490,22 @@ export const useFriendStore = defineStore('friend', () => {
   }
 
   async function handleFriendRequestNotification() {
+    const appSettingsStore = useAppSettingsStore()
+    appSettingsStore.playNotificationSound()
     ElMessage.info('你收到一条好友请求')
     await fetchReceivedRequests()
   }
 
   async function handleFriendAcceptedNotification() {
+    const appSettingsStore = useAppSettingsStore()
+    appSettingsStore.playNotificationSound()
     ElMessage.success('对方已通过你的好友请求')
     await Promise.all([fetchFriends(), fetchSentRequests()])
   }
 
   async function handleFriendRejectedNotification() {
+    const appSettingsStore = useAppSettingsStore()
+    appSettingsStore.playNotificationSound()
     ElMessage.info('对方已拒绝你的好友请求')
     await fetchSentRequests()
   }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
+import { useAppSettingsStore } from './appSettings'
 import type { ChatRoom, Message, CompleteMessage, BackendChatRoom, User } from '@/types'
 import { chatApi, authApi, messageApi } from '@/api'
 import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
@@ -54,6 +55,7 @@ export const useChatStore = defineStore('chat', () => {
     if (wsMessage.content === null) return
 
     const userStore = useUserStore()
+    const appSettingsStore = useAppSettingsStore()
     // [Bug Fix] 防止出现两条消息: 如果这条消息是当前用户自己发的，并且我们在 sendMessage 时已经通过“乐观更新(Optimistic update)”添加了，这里就不需要再处理它了。
     // 虽然文档中说明后端排除了自己，但如果在某些特定情况下或者后续有回显的可能，做一次防重判断也是极好的。
     if (userStore.user && String(wsMessage.uid) === String(userStore.user.userId)) {
@@ -94,6 +96,7 @@ export const useChatStore = defineStore('chat', () => {
       room.updatedAt = message.timestamp
       if (String(currentRoomId.value) !== roomId) {
         room.unreadCount++
+        appSettingsStore.playNotificationSound()
       } else {
         markRoomRead(Number(roomId)).catch(() => {})
       }

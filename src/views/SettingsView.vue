@@ -75,7 +75,10 @@
               <div class="setting-title">消息通知</div>
               <div class="setting-desc">接收新消息通知</div>
             </div>
-            <el-switch v-model="settings.notifications" />
+            <el-switch
+              v-model="appSettingsStore.notificationsEnabled"
+              @change="appSettingsStore.setNotificationsEnabled"
+            />
           </div>
           
           <div class="setting-item">
@@ -83,15 +86,10 @@
               <div class="setting-title">声音提醒</div>
               <div class="setting-desc">消息提醒音</div>
             </div>
-            <el-switch v-model="settings.soundEnabled" />
-          </div>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-title">自动登录</div>
-              <div class="setting-desc">下次自动登录</div>
-            </div>
-            <el-switch v-model="settings.autoLogin" />
+            <el-switch
+              v-model="appSettingsStore.soundEnabled"
+              @change="appSettingsStore.setSoundEnabled"
+            />
           </div>
         </div>
       </div>
@@ -99,14 +97,6 @@
       <div class="settings-section">
         <h2>隐私设置</h2>
         <div class="settings-card">
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-title">在线状态</div>
-              <div class="setting-desc">显示在线状态</div>
-            </div>
-            <el-switch v-model="settings.showOnlineStatus" />
-          </div>
-          
           <div class="setting-item">
             <div class="setting-info">
               <div class="setting-title">已读回执</div>
@@ -209,6 +199,7 @@ import { ArrowLeft, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useChatStore } from '@/stores/chat'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import { adminApplicationApi, fileApi, userProfileApi } from '@/api'
 import type { AdminApplication, AdminApplicationStatus } from '@/types'
 import { buildFileDownloadUrl, toApiAssetUrl } from '@/utils/url'
@@ -217,6 +208,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const themeStore = useThemeStore()
 const chatStore = useChatStore()
+const appSettingsStore = useAppSettingsStore()
 
 const avatarInputRef = ref<HTMLInputElement>()
 const updating = ref(false)
@@ -233,10 +225,6 @@ const profileForm = reactive({
 })
 
 const settings = reactive({
-  notifications: true,
-  soundEnabled: true,
-  autoLogin: localStorage.getItem('remember') === 'true',
-  showOnlineStatus: true,
   readReceipts: true
 })
 
