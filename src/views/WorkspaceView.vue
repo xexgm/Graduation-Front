@@ -35,6 +35,7 @@ onMounted(async () => {
   ])
 
   await Promise.allSettled([
+    chatStore.fetchRoomUnreadCounts(),
     friendStore.fetchPrivateLatestMessages(),
     chatStore.fetchRoomLatestMessages()
   ])

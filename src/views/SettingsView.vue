@@ -12,11 +12,14 @@
         <h2>个人信息</h2>
         <div class="profile-card">
           <div class="avatar-section">
-            <el-avatar :size="80" :src="userStore.user?.avatarUrl" class="user-avatar">
+            <el-avatar :size="80" :src="toApiAssetUrl(profileForm.avatarUrl || userStore.user?.avatarUrl)" class="user-avatar">
               {{ userStore.user?.nickname?.[0] || userStore.user?.username?.[0] }}
             </el-avatar>
             <el-button type="primary" size="small" @click="handleAvatarUpload">
               更换头像
+            </el-button>
+            <el-button size="small" @click="router.push('/profile/me')">
+              查看资料页
             </el-button>
             <input
               ref="avatarInputRef"
@@ -31,9 +34,15 @@
             <el-form-item label="用户名">
               <el-input v-model="profileForm.username" disabled />
             </el-form-item>
+            <el-form-item label="用户编号">
+              <el-input v-model="profileForm.userNo" disabled />
+            </el-form-item>
             
             <el-form-item label="昵称">
               <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
+            </el-form-item>
+            <el-form-item label="签名">
+              <el-input v-model="profileForm.signature" maxlength="255" placeholder="请输入个性签名" />
             </el-form-item>
             
             <el-form-item>
@@ -200,8 +209,9 @@ import { ArrowLeft, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useChatStore } from '@/stores/chat'
-import { adminApplicationApi } from '@/api'
+import { adminApplicationApi, fileApi, userProfileApi } from '@/api'
 import type { AdminApplication, AdminApplicationStatus } from '@/types'
+import { buildFileDownloadUrl, toApiAssetUrl } from '@/utils/url'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -214,8 +224,11 @@ const myAdminApplication = ref<AdminApplication | null>(null)
 const submittingAdminApplication = ref(false)
 
 const profileForm = reactive({
+  userNo: userStore.user?.userNo || '',
   username: userStore.user?.username || '',
   nickname: userStore.user?.nickname || '',
+  signature: userStore.user?.signature || '',
+  avatarUrl: userStore.user?.avatarUrl || '',
   // email: userStore.user?.email || '' // 移除不存在的 email 属性
 })
 
@@ -264,10 +277,29 @@ const handleAvatarChange = async (event: Event) => {
 
   try {
     ElMessage.info('头像上传中...')
-    // 暂时移除文件上传功能，等待后端实现
-    const avatarUrl = URL.createObjectURL(file)
-    
-    userStore.updateUser({ avatarUrl })
+    const response = await fileApi.upload(file)
+    if (response.code !== 200 || !response.data?.fileId) {
+      throw new Error(response.message || '头像上传失败')
+    }
+    const avatarUrl = buildFileDownloadUrl(response.data.fileId)
+    const profileResponse = await userProfileApi.update({
+      nickname: profileForm.nickname.trim(),
+      signature: profileForm.signature.trim(),
+      avatarUrl
+    })
+    if (profileResponse.data) {
+      profileForm.userNo = profileResponse.data.userNo || ''
+      profileForm.username = profileResponse.data.username
+      profileForm.nickname = profileResponse.data.nickname || ''
+      profileForm.signature = profileResponse.data.signature || ''
+      profileForm.avatarUrl = profileResponse.data.avatarUrl || avatarUrl
+      userStore.updateUser({
+        userNo: profileResponse.data.userNo,
+        nickname: profileResponse.data.nickname || userStore.user?.nickname,
+        avatarUrl: profileResponse.data.avatarUrl || avatarUrl,
+        signature: profileResponse.data.signature
+      })
+    }
     ElMessage.success('头像更新成功')
   } catch (error: any) {
     ElMessage.error('头像上传失败')
@@ -279,11 +311,24 @@ const handleAvatarChange = async (event: Event) => {
 const updateProfile = async () => {
   try {
     updating.value = true
-    
-    // 暂时移除 API 调用，等待后端实现
-    userStore.updateUser({
-      nickname: profileForm.nickname
+    const response = await userProfileApi.update({
+      nickname: profileForm.nickname.trim(),
+      signature: profileForm.signature.trim(),
+      avatarUrl: profileForm.avatarUrl
     })
+    if (response.data) {
+      profileForm.userNo = response.data.userNo || ''
+      profileForm.username = response.data.username
+      profileForm.nickname = response.data.nickname || ''
+      profileForm.signature = response.data.signature || ''
+      profileForm.avatarUrl = response.data.avatarUrl || ''
+      userStore.updateUser({
+        userNo: response.data.userNo,
+        nickname: response.data.nickname || userStore.user?.nickname,
+        avatarUrl: response.data.avatarUrl,
+        signature: response.data.signature
+      })
+    }
     ElMessage.success('个人信息更新成功')
   } catch (error: any) {
     ElMessage.error('更新失败，请重试')
@@ -331,6 +376,26 @@ const fetchMyAdminApplication = async () => {
     myAdminApplication.value = response.data || null
   } catch (error) {
     console.warn('获取管理员申请状态失败:', error)
+  }
+}
+
+const fetchMyProfile = async () => {
+  try {
+    const response = await userProfileApi.getMe()
+    if (!response.data) return
+    profileForm.userNo = response.data.userNo || ''
+    profileForm.username = response.data.username
+    profileForm.nickname = response.data.nickname || ''
+    profileForm.signature = response.data.signature || ''
+    profileForm.avatarUrl = response.data.avatarUrl || ''
+    userStore.updateUser({
+      userNo: response.data.userNo,
+      nickname: response.data.nickname || userStore.user?.nickname,
+      avatarUrl: response.data.avatarUrl,
+      signature: response.data.signature
+    })
+  } catch (error) {
+    console.warn('获取我的资料失败:', error)
   }
 }
 
@@ -389,6 +454,7 @@ const handleDelete = async (room: { id: string }) => {
 }
 
 onMounted(async () => {
+  await fetchMyProfile()
   await fetchMyAdminApplication()
   if (!chatStore.rooms.length) {
     try { await chatStore.fetchRooms() } catch {}

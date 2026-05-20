@@ -21,7 +21,7 @@
               }"
             >
               <div v-if="message.senderId !== currentUserId" class="message-avatar">
-                <el-avatar :size="32" :src="getSenderAvatar(message.senderId)">
+                <el-avatar :size="32" :src="getSenderAvatar(message.senderId)" @click="openSenderProfile(message.senderId)">
                   {{ getSenderName(message.senderId)[0] }}
                 </el-avatar>
               </div>
@@ -119,6 +119,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Document, Loading, Check, Select, Download, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
@@ -127,6 +128,7 @@ import { useChatStore } from '@/stores/chat'
 import { useVoiceTranscriptionStore } from '@/stores/voiceTranscription'
 import { fileApi } from '@/api'
 import { formatAudioDuration, formatFileSize, parseAudioMessageContent, parseFileMessageContent } from '@/utils/fileMessage'
+import { toApiAssetUrl } from '@/utils/url'
 import type { ChatRoom, Message } from '@/types'
 
 const props = defineProps<{
@@ -136,6 +138,7 @@ const props = defineProps<{
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const voiceTranscriptionStore = useVoiceTranscriptionStore()
+const router = useRouter()
 const messageListRef = ref<HTMLElement>()
 
 const currentUserId = computed(() => String(userStore.user?.userId || ''))
@@ -180,9 +183,26 @@ const getSenderName = (senderId: string) => {
 const getSenderAvatar = (senderId: string) => {
   const id = parseInt(senderId)
   const user = chatStore.getUserById?.(id)
-  if (user) return user.avatarUrl
+  if (user) return toApiAssetUrl(user.avatarUrl)
   const sender = props.room.participants.find(p => p.userId.toString() === senderId)
-  return sender?.avatarUrl
+  return toApiAssetUrl(sender?.avatarUrl)
+}
+
+const getSenderUserNo = (senderId: string) => {
+  const id = parseInt(senderId)
+  const user = chatStore.getUserById?.(id)
+  if (user?.userNo) return user.userNo
+  const sender = props.room.participants.find(p => p.userId.toString() === senderId)
+  return sender?.userNo
+}
+
+const openSenderProfile = (senderId: string) => {
+  const userNo = getSenderUserNo(senderId)
+  if (!userNo) {
+    ElMessage.warning('该用户暂无用户编号')
+    return
+  }
+  router.push(`/profile/${userNo}`)
 }
 
 const formatTime = (timestamp: Date) => {
@@ -345,7 +365,7 @@ watch(messages, (list) => {
   margin: 16px 0;
   
   span {
-    background: var(--bg-light);
+    background: var(--workspace-panel-muted);
     color: var(--text-secondary);
     padding: 4px 12px;
     border-radius: var(--radius-large);
@@ -377,6 +397,7 @@ watch(messages, (list) => {
 .message-avatar {
   margin-right: 8px;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .message-content {
@@ -406,9 +427,9 @@ watch(messages, (list) => {
   }
   
   &.received {
-    background: var(--bg-white);
+    background: var(--chat-bubble-received);
     color: var(--text-primary);
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--workspace-border);
   }
 }
 
@@ -433,7 +454,7 @@ watch(messages, (list) => {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--workspace-panel-muted);
   border-radius: var(--radius-base);
   cursor: pointer;
   
@@ -472,7 +493,7 @@ watch(messages, (list) => {
   min-width: 88px;
   padding: 6px 8px;
   border-radius: var(--radius-base);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--workspace-panel-muted);
   cursor: pointer;
 
   .el-icon {
@@ -495,10 +516,10 @@ watch(messages, (list) => {
 .transcription-pill {
   height: 26px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
+  border: 1px solid var(--workspace-border);
   border-radius: 999px;
   color: inherit;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--workspace-panel-muted);
   font-size: 12px;
   line-height: 24px;
   cursor: pointer;
@@ -507,7 +528,7 @@ watch(messages, (list) => {
 }
 
 .transcription-pill:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--workspace-card-hover);
 }
 
 .transcription-pill:disabled {
@@ -522,7 +543,7 @@ watch(messages, (list) => {
   border-radius: var(--radius-base);
   font-size: 13px;
   line-height: 1.5;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--workspace-panel-muted);
 }
 
 .transcription-error {

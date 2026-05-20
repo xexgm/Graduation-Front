@@ -2,7 +2,12 @@
   <div class="private-chat-window" v-if="activeFriend">
     <div class="chat-header">
       <div class="header-user-info">
-        <el-avatar :size="40" :src="activeFriend.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${activeFriend.nickname}`" />
+        <el-avatar
+          :size="40"
+          :src="toApiAssetUrl(activeFriend.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${activeFriend.nickname}`"
+          class="clickable-avatar"
+          @click="openProfileForMessage(activeFriend.userId)"
+        />
         <span class="header-name">{{ activeFriend.nickname || activeFriend.username }}</span>
       </div>
       <el-button size="small" @click="closeChat">关闭</el-button>
@@ -24,6 +29,7 @@
             class="msg-avatar"
             :size="36" 
             :src="getAvatarForMessage(msg.senderId)" 
+            @click="openProfileForMessage(msg.senderId)"
           />
           <div class="msg-content-wrapper">
             <div class="msg-name" v-if="!isMyMessage(msg.senderId)">
@@ -128,7 +134,9 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useFriendStore } from '@/stores/friend'
 import { useUserStore } from '@/stores/user'
 import { useVoiceTranscriptionStore } from '@/stores/voiceTranscription'
+import { useRouter } from 'vue-router'
 import { fileApi } from '@/api'
+import { toApiAssetUrl } from '@/utils/url'
 import {
   buildAudioMessageContent,
   buildFileMessageContent,
@@ -145,6 +153,7 @@ import dayjs from 'dayjs'
 const friendStore = useFriendStore()
 const userStore = useUserStore()
 const voiceTranscriptionStore = useVoiceTranscriptionStore()
+const router = useRouter()
 
 const inputContent = ref('')
 const scrollbarRef = ref()
@@ -174,14 +183,23 @@ const isMyMessage = (senderId: string | number) => {
 
 const getAvatarForMessage = (senderId: string | number) => {
   if (isMyMessage(senderId)) {
-    return userStore.user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${userStore.user?.nickname}`
+    return toApiAssetUrl(userStore.user?.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${userStore.user?.nickname}`
   }
-  return activeFriend.value?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${activeFriend.value?.nickname}`
+  return toApiAssetUrl(activeFriend.value?.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${activeFriend.value?.nickname}`
 }
 
 const getNicknameForMessage = (senderId: string | number) => {
   if (isMyMessage(senderId)) return userStore.user?.nickname
   return activeFriend.value?.nickname || activeFriend.value?.username
+}
+
+const openProfileForMessage = (senderId: string | number) => {
+  const userNo = isMyMessage(senderId) ? userStore.user?.userNo : activeFriend.value?.userNo
+  if (!userNo) {
+    ElMessage.warning('该用户暂无用户编号')
+    return
+  }
+  router.push(`/profile/${userNo}`)
 }
 
 const formatTime = (time: Date) => {
@@ -474,7 +492,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-color);
+  background: var(--chat-surface);
 }
 
 .empty-chat-selection {
@@ -482,7 +500,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
-  background: var(--bg-color-soft);
+  background: var(--chat-surface-muted);
 }
 
 .chat-header {
@@ -490,8 +508,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-white);
+  border-bottom: 1px solid var(--workspace-border);
+  background: var(--workspace-panel-muted);
   
   .header-user-info {
     display: flex;
@@ -509,7 +527,7 @@ onUnmounted(() => {
 .message-list {
   flex: 1;
   padding: 20px;
-  background: var(--bg-color-soft);
+  background: var(--chat-surface-muted);
 }
 
 .message-container {
@@ -532,11 +550,16 @@ onUnmounted(() => {
     }
     
     .msg-bubble {
-      background: var(--primary-color);
+      background: var(--chat-bubble-sent);
       color: white;
       border-radius: 12px 0 12px 12px;
     }
   }
+}
+
+.msg-avatar,
+.clickable-avatar {
+  cursor: pointer;
 }
 
 .msg-content-wrapper {
@@ -552,7 +575,7 @@ onUnmounted(() => {
 }
 
 .msg-bubble {
-  background: var(--bg-white);
+  background: var(--chat-bubble-received);
   padding: 10px 14px;
   border-radius: 0 12px 12px 12px;
   font-size: 14px;
@@ -595,16 +618,22 @@ onUnmounted(() => {
 
 .chat-input-area {
   padding: 16px;
-  background: var(--bg-white);
-  border-top: 1px solid var(--border-color);
+  background: var(--workspace-panel-muted);
+  border-top: 1px solid var(--workspace-border);
   
   :deep(.el-textarea__inner) {
-    background: var(--bg-color-soft);
-    border: none;
+    color: var(--text-primary);
+    background: var(--chat-input-bg);
+    border: 1px solid var(--workspace-border);
     box-shadow: none;
     
     &:focus {
-      box-shadow: 0 0 0 1px var(--primary-light) inset;
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 2px var(--workspace-glow) inset;
+    }
+
+    &::placeholder {
+      color: var(--text-placeholder);
     }
   }
 }

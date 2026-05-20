@@ -20,6 +20,7 @@
             <div class="name">{{ room.name || `聊天室 ${room.id}` }}</div>
             <div class="sub">ID: {{ room.id }}</div>
           </div>
+          <el-badge v-if="room.unreadCount > 0" :value="room.unreadCount" :max="99" />
         </div>
         <el-button size="small" type="primary" @click="openRoom(room.id)">进入</el-button>
       </div>

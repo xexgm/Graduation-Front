@@ -430,7 +430,10 @@ onMounted(async () => {
 .admin-dashboard {
   min-height: 100vh;
   padding: 24px;
-  background: var(--bg-lighter);
+  background:
+    radial-gradient(circle at 15% 12%, var(--workspace-glow), transparent 28%),
+    linear-gradient(135deg, var(--workspace-bg), var(--workspace-bg-soft));
+  color: var(--text-primary);
 }
 
 .admin-header {
@@ -453,9 +456,51 @@ onMounted(async () => {
 
 .admin-tabs {
   padding: 20px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-large);
-  background: var(--bg-white);
+  border: 1px solid var(--workspace-border);
+  border-radius: 20px;
+  background: var(--workspace-panel);
+  box-shadow: var(--workspace-shadow);
+  backdrop-filter: blur(18px);
+
+  :deep(.el-tabs__nav-wrap::after) {
+    background-color: var(--workspace-border);
+  }
+
+  :deep(.el-tabs__item) {
+    color: var(--text-secondary);
+  }
+
+  :deep(.el-tabs__item.is-active) {
+    color: var(--brand-primary);
+    font-weight: 700;
+  }
+
+  :deep(.el-tabs__active-bar) {
+    background-color: var(--brand-primary);
+  }
+
+  :deep(.el-table) {
+    --el-table-bg-color: var(--workspace-panel-solid);
+    --el-table-tr-bg-color: var(--workspace-panel-solid);
+    --el-table-header-bg-color: var(--workspace-panel-muted);
+    --el-table-row-hover-bg-color: var(--workspace-card-hover);
+    --el-table-border-color: var(--workspace-border);
+    --el-table-text-color: var(--text-regular);
+    --el-table-header-text-color: var(--text-primary);
+    color: var(--text-regular);
+    background: var(--workspace-panel-solid);
+  }
+
+  :deep(.el-table th.el-table__cell),
+  :deep(.el-table td.el-table__cell) {
+    background-color: transparent;
+    border-color: var(--workspace-border);
+  }
+
+  :deep(.el-table__fixed-right),
+  :deep(.el-table__fixed-right::before) {
+    background: var(--workspace-panel-solid);
+  }
 }
 
 .toolbar {
@@ -467,9 +512,47 @@ onMounted(async () => {
   .el-select {
     max-width: 220px;
   }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-select__wrapper) {
+    border: 1px solid var(--workspace-border);
+    border-radius: 10px;
+    background: var(--workspace-input);
+    box-shadow: none;
+  }
+
+  :deep(.el-input__inner),
+  :deep(.el-select__placeholder),
+  :deep(.el-select__selected-item) {
+    color: var(--text-primary);
+  }
 }
 
 .notice-form-card {
   margin-bottom: 16px;
+  border-color: var(--workspace-border);
+  background: var(--workspace-panel-muted);
+
+  :deep(.el-card__body) {
+    color: var(--text-primary);
+  }
+
+  :deep(.el-form-item__label) {
+    color: var(--text-primary);
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner),
+  :deep(.el-select__wrapper) {
+    border: 1px solid var(--workspace-border);
+    color: var(--text-primary);
+    background: var(--workspace-input);
+    box-shadow: none;
+  }
+
+  :deep(.el-textarea__inner::placeholder),
+  :deep(.el-input__inner::placeholder) {
+    color: var(--text-placeholder);
+  }
 }
 </style>

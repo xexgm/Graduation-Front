@@ -286,8 +286,8 @@ const handleFileChange = async (event: Event) => {
 
 <style scoped lang="scss">
 .message-input {
-  background: var(--bg-white);
-  border-top: 1px solid var(--border-light);
+  background: var(--workspace-panel-muted);
+  border-top: 1px solid var(--workspace-border);
   padding: 16px 20px;
 }
 
@@ -302,7 +302,7 @@ const handleFileChange = async (event: Event) => {
     
     &:hover {
       color: var(--primary-color);
-      background: var(--bg-light);
+      background: var(--workspace-card-hover);
     }
 
     &.is-recording {
@@ -330,8 +330,10 @@ const handleFileChange = async (event: Event) => {
   
   :deep(.el-textarea__inner) {
     border-radius: var(--radius-large);
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--workspace-border);
     padding: 12px 16px;
+    color: var(--text-primary);
+    background: var(--chat-input-bg);
     font-size: 14px;
     line-height: 1.4;
     resize: none;

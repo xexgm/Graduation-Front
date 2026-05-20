@@ -17,8 +17,12 @@ import type {
   FriendRequestRejectRequest,
   PrivateReadRequest,
   PrivateUnreadCount,
+  ChatRoomReadRequest,
+  ChatRoomUnreadCount,
   VoiceTranscribeRequest,
   VoiceTranscribeResponse,
+  UserProfile,
+  UserProfileUpdateRequest,
   AdminApplicationQuery,
   AdminReviewRequest,
   AdminUser,
@@ -29,7 +33,8 @@ import type {
   AdminNotice,
   AdminNoticeCreateRequest,
   AdminNoticeQuery,
-  PageResult
+  PageResult,
+  FriendRequestByUserNoRequest
 } from '@/types'
 import { ElMessage } from 'element-plus'
 
@@ -210,6 +215,17 @@ export const authApi = {
     api.post('/user/change-password', data).then(res => res.data)
 }
 
+export const userProfileApi = {
+  getMe: (): Promise<ApiResponse<UserProfile>> =>
+    api.get('/user/profile/me').then(res => res.data),
+
+  getByUserNo: (userNo: string): Promise<ApiResponse<UserProfile>> =>
+    api.get(`/user/profile/${encodeURIComponent(userNo)}`).then(res => res.data),
+
+  update: (data: UserProfileUpdateRequest): Promise<ApiResponse<UserProfile>> =>
+    api.put('/user/profile', data).then(res => res.data)
+}
+
 // 聊天API
 export const chatApi = {
   // 发送消息 (通过WebSocket实现，这里提供占位符方法)
@@ -257,6 +273,9 @@ export const friendApi = {
 export const friendRequestApi = {
   send: (data: FriendRequestCreateRequest): Promise<ApiResponse<FriendRequest>> =>
     api.post('/friend/request', data).then(res => res.data),
+
+  sendByUserNo: (data: FriendRequestByUserNoRequest): Promise<ApiResponse<FriendRequest>> =>
+    api.post('/friend/request/by-user-no', data).then(res => res.data),
 
   getReceived: (status?: number): Promise<ApiResponse<FriendRequest[]>> =>
     api.get('/friend/request/received', { params: status === undefined ? undefined : { status } }).then(res => res.data),
@@ -353,7 +372,15 @@ export const messageApi = {
 
   // 获取私聊未读数量
   getPrivateUnreadCount: (): Promise<ApiResponse<PrivateUnreadCount[]>> =>
-    api.get('/message/private/unread-count').then(res => res.data)
+    api.get('/message/private/unread-count').then(res => res.data),
+
+  // 标记聊天室已读
+  markChatRoomRead: (data: ChatRoomReadRequest): Promise<ApiResponse<null>> =>
+    api.post('/message/chatroom/read', data).then(res => res.data),
+
+  // 获取聊天室未读数量
+  getChatRoomUnreadCount: (): Promise<ApiResponse<ChatRoomUnreadCount[]>> =>
+    api.get('/message/chatroom/unread-count').then(res => res.data)
 }
 
 export const fileApi = {

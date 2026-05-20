@@ -15,6 +15,7 @@ export const useChatStore = defineStore('chat', () => {
   const userDirectory = ref<Record<number, User>>({})
   const onlineCountByRoom = ref<Record<string, number>>({})
   let onlineCountTimer: number | null = null
+  const lastReadRoomMaxMsgIds: Record<number, number> = {}
 
   const currentRoom = computed(() => rooms.value.find(r => r.id === String(currentRoomId.value)) || null)
   const currentMessages = computed(() => (currentRoomId.value ? messages.value[currentRoomId.value] || [] : []))
@@ -68,6 +69,7 @@ export const useChatStore = defineStore('chat', () => {
     const audioInfo = parseAudioMessageContent(wsMessage.content) || undefined
     const message: Message = {
       id: `${wsMessage.uid}-${wsMessage.timeStamp}`,
+      msgId: wsMessage.msgId,
       senderId: String(wsMessage.uid),
       roomId: String(wsMessage.toId),
       content: wsMessage.content,
@@ -92,6 +94,8 @@ export const useChatStore = defineStore('chat', () => {
       room.updatedAt = message.timestamp
       if (String(currentRoomId.value) !== roomId) {
         room.unreadCount++
+      } else {
+        markRoomRead(Number(roomId)).catch(() => {})
       }
     }
   }
@@ -260,10 +264,26 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function fetchMessages(roomId: string) {
-    // This is a placeholder. In a real app, you would fetch history from an API.
-    if (!messages.value[roomId]) {
-      messages.value[roomId] = []
+    const normalizedRoomId = Number(roomId)
+    if (!Number.isFinite(normalizedRoomId)) {
+      return []
     }
+
+    try {
+      const response = await messageApi.getChatRoomHistory(normalizedRoomId, 1, 20)
+      const records = response.data?.records || []
+      const historyMessages = records
+        .map((record: any) => toChatRoomHistoryMessage(record, normalizedRoomId))
+        .sort((a: Message, b: Message) => a.timestamp.getTime() - b.timestamp.getTime())
+      messages.value[roomId] = historyMessages
+      await markRoomRead(normalizedRoomId)
+    } catch (error) {
+      console.error('Failed to fetch room messages:', error)
+      if (!messages.value[roomId]) {
+        messages.value[roomId] = []
+      }
+    }
+
     return messages.value[roomId]
   }
 
@@ -306,6 +326,49 @@ export const useChatStore = defineStore('chat', () => {
       room.lastMessage = latestMessage
       room.updatedAt = latestMessage.timestamp
     }))
+  }
+
+  async function fetchRoomUnreadCounts() {
+    try {
+      const response = await messageApi.getChatRoomUnreadCount()
+      const counts = response.data || []
+      const countMap: Record<number, number> = {}
+      counts.forEach((item: any) => {
+        countMap[Number(item.roomId)] = Number(item.unreadCount || 0)
+      })
+
+      rooms.value.forEach(room => {
+        room.unreadCount = countMap[Number(room.id)] || 0
+      })
+    } catch (error) {
+      console.warn('Failed to fetch chatroom unread counts:', error)
+    }
+  }
+
+  async function markRoomRead(roomId: number) {
+    const list = messages.value[String(roomId)] || []
+    const maxMsgId = Math.max(
+      0,
+      ...list
+        .filter(message => message.msgId)
+        .map(message => Number(message.msgId))
+    )
+    if (!maxMsgId || (lastReadRoomMaxMsgIds[roomId] || 0) >= maxMsgId) {
+      return
+    }
+
+    const room = rooms.value.find(item => item.id === String(roomId))
+    const previousUnread = room?.unreadCount || 0
+    if (room) room.unreadCount = 0
+
+    try {
+      await messageApi.markChatRoomRead({ roomId, maxMsgId })
+      lastReadRoomMaxMsgIds[roomId] = maxMsgId
+      await fetchRoomUnreadCounts()
+    } catch (error) {
+      if (room) room.unreadCount = previousUnread
+      console.warn('Failed to mark chatroom read:', error)
+    }
   }
 
   // 用户信息缓存与获取
@@ -387,6 +450,8 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentRoom,
     fetchRoomOnlineCount,
     fetchRoomLatestMessages,
+    fetchRoomUnreadCounts,
+    markRoomRead,
     leaveCurrentRoom,
     sendMessage,
     createRoom,

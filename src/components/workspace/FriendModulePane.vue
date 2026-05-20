@@ -19,11 +19,12 @@
               :key="request.id"
               class="request-item"
             >
-              <el-avatar :size="32" :src="request.senderAvatarUrl">
+              <el-avatar :size="32" :src="toApiAssetUrl(request.senderAvatarUrl)" @click.stop="openProfile(request.senderUserNo)">
                 {{ (request.senderNickname || request.senderUsername || '?')[0] }}
               </el-avatar>
               <div class="request-meta">
                 <div class="request-name">{{ request.senderNickname || request.senderUsername || `用户${request.senderId}` }}</div>
+                <div v-if="request.senderUserNo" class="request-message">编号：{{ request.senderUserNo }}</div>
                 <div class="request-message">{{ request.message || '请求添加你为好友' }}</div>
                 <div class="request-time">{{ formatTime(request.createTime) }}</div>
               </div>
@@ -40,11 +41,12 @@
               :key="request.id"
               class="request-item"
             >
-              <el-avatar :size="32" :src="request.receiverAvatarUrl">
+              <el-avatar :size="32" :src="toApiAssetUrl(request.receiverAvatarUrl)" @click.stop="openProfile(request.receiverUserNo)">
                 {{ (request.receiverNickname || request.receiverUsername || '?')[0] }}
               </el-avatar>
               <div class="request-meta">
                 <div class="request-name">{{ request.receiverNickname || request.receiverUsername || `用户${request.receiverId}` }}</div>
+                <div v-if="request.receiverUserNo" class="request-message">编号：{{ request.receiverUserNo }}</div>
                 <div class="request-message">{{ formatRequestStatus(request.status) }}</div>
                 <div class="request-time">{{ formatTime(request.createTime) }}</div>
               </div>
@@ -66,12 +68,14 @@
         class="friend-item"
         @click="openPrivate(friend.userId)"
       >
-        <el-avatar :size="40" :src="friend.avatarUrl">
+        <el-avatar :size="40" :src="friend.avatarUrl" @click.stop="openProfile(friend.userNo)">
           {{ (friend.nickname || friend.username || '?')[0] }}
         </el-avatar>
         <div class="meta">
           <div class="name">{{ friend.nickname || friend.username }}</div>
-          <div class="sub">{{ friend.signature || '这个人很懒，什么都没写' }}</div>
+          <div class="sub">
+            <span v-if="friend.userNo">编号 {{ friend.userNo }} · </span>{{ friend.signature || '这个人很懒，什么都没写' }}
+          </div>
         </div>
       </div>
 
@@ -82,8 +86,8 @@
 
     <el-dialog v-model="showAddDialog" title="添加好友" width="360px">
       <el-form @submit.prevent="handleAddFriend">
-        <el-form-item label="好友ID">
-          <el-input v-model.number="friendIdInput" type="number" placeholder="请输入好友用户ID" />
+        <el-form-item label="用户编号">
+          <el-input v-model="friendUserNoInput" maxlength="8" placeholder="请输入 8 位用户编号" />
         </el-form-item>
         <el-form-item label="附言">
           <el-input
@@ -107,16 +111,19 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useConversationStore } from '@/stores/conversation'
 import { useFriendStore } from '@/stores/friend'
 import type { FriendRequestStatus } from '@/types'
+import { toApiAssetUrl } from '@/utils/url'
 
 const friendStore = useFriendStore()
 const conversationStore = useConversationStore()
+const router = useRouter()
 
 const showAddDialog = ref(false)
 const adding = ref(false)
-const friendIdInput = ref<number | null>(null)
+const friendUserNoInput = ref('')
 const friendRequestMessage = ref('')
 const activeRequestTab = ref<'received' | 'sent'>('received')
 
@@ -124,19 +131,27 @@ const openPrivate = async (friendId: number) => {
   await conversationStore.openPrivateByFriendId(friendId)
 }
 
+const openProfile = (userNo?: string) => {
+  if (!userNo) {
+    ElMessage.warning('该用户暂无用户编号')
+    return
+  }
+  router.push(`/profile/${userNo}`)
+}
+
 const handleAddFriend = async () => {
-  const friendId = Number(friendIdInput.value)
-  if (!Number.isFinite(friendId) || friendId <= 0) {
-    ElMessage.warning('请输入有效的好友ID')
+  const friendUserNo = friendUserNoInput.value.trim()
+  if (!/^1\d{7}$/.test(friendUserNo)) {
+    ElMessage.warning('请输入以 1 开头的 8 位用户编号')
     return
   }
 
   adding.value = true
   try {
-    const ok = await friendStore.sendFriendRequest(friendId, friendRequestMessage.value.trim() || undefined)
+    const ok = await friendStore.sendFriendRequestByUserNo(friendUserNo, friendRequestMessage.value.trim() || undefined)
     if (ok) {
       ElMessage.success('好友请求已发送')
-      friendIdInput.value = null
+      friendUserNoInput.value = ''
       friendRequestMessage.value = ''
       showAddDialog.value = false
       await friendStore.fetchSentRequests()
@@ -296,12 +311,30 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .request-tabs {
   :deep(.el-tabs__header) {
     margin-bottom: 8px;
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    background-color: var(--workspace-border);
+  }
+
+  :deep(.el-tabs__item) {
+    color: var(--text-secondary);
+  }
+
+  :deep(.el-tabs__item.is-active) {
+    color: var(--brand-primary);
+    font-weight: 700;
+  }
+
+  :deep(.el-tabs__active-bar) {
+    background-color: var(--brand-primary);
   }
 }
 
@@ -327,6 +360,7 @@ onMounted(() => {
 .request-name {
   font-size: 13px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .request-message,

@@ -9,6 +9,7 @@ export interface ApiResponse<T = any> {
 // 用户相关类型
 export interface User {
   userId: number
+  userNo?: string
   username: string
   nickname: string
   avatarUrl?: string
@@ -36,6 +37,24 @@ export interface AdminApplication {
   reviewedTime?: string
   approvedTime?: string
   createTime?: string
+}
+
+export interface UserProfile {
+  userId: number
+  userNo?: string
+  username: string
+  nickname?: string
+  avatarUrl?: string
+  signature?: string
+  role?: number
+  status?: number
+  createTime?: string | number
+}
+
+export interface UserProfileUpdateRequest {
+  nickname?: string
+  avatarUrl?: string
+  signature?: string
 }
 
 export interface AdminApplicationRequest {
@@ -263,6 +282,16 @@ export interface ChatRoom {
   onlineCount?: number
 }
 
+export interface ChatRoomReadRequest {
+  roomId: number
+  maxMsgId: number
+}
+
+export interface ChatRoomUnreadCount {
+  roomId: number
+  unreadCount: number
+}
+
 // 后端聊天室类型（文档字段）
 export type ChatRoomType = 'PUBLIC_ROOM' | 'PRIVATE_ROOM'
 export type ChatRoomStatus = 'ACTIVE' | 'DISBANDED' | 'DELETED'
@@ -293,6 +322,7 @@ export interface CreateChatRoomRequest {
  */
 export interface Friend {
   userId: number;
+  userNo?: string;
   username: string;
   nickname: string;
   avatarUrl?: string;
@@ -306,10 +336,12 @@ export type FriendRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELE
 export interface FriendRequest {
   id: number
   senderId: number
+  senderUserNo?: string
   senderUsername?: string
   senderNickname?: string
   senderAvatarUrl?: string
   receiverId: number
+  receiverUserNo?: string
   receiverUsername?: string
   receiverNickname?: string
   receiverAvatarUrl?: string
@@ -321,6 +353,11 @@ export interface FriendRequest {
 
 export interface FriendRequestCreateRequest {
   friendId: number
+  message?: string
+}
+
+export interface FriendRequestByUserNoRequest {
+  friendUserNo: string
   message?: string
 }
 

@@ -6,6 +6,7 @@ import { friendApi, friendRequestApi, messageApi } from '@/api'
 import { webSocketService } from '@/websocket'
 import { useUserStore } from './user'
 import { parseAudioMessageContent, parseFileMessageContent, resolveMessageType } from '@/utils/fileMessage'
+import { toApiAssetUrl } from '@/utils/url'
 
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<Friend[]>([])
@@ -113,8 +114,9 @@ export const useFriendStore = defineStore('friend', () => {
       userId: normalizedId,
       username: String(rawFriend?.username || rawFriend?.nickname || `用户${normalizedId}`),
       nickname: String(rawFriend?.nickname || rawFriend?.username || `用户${normalizedId}`),
-      avatarUrl: rawFriend?.avatarUrl || undefined,
+      avatarUrl: toApiAssetUrl(rawFriend?.avatarUrl) || undefined,
       signature: rawFriend?.signature || undefined,
+      userNo: rawFriend?.userNo || undefined,
       status: normalizedStatus,
       relationStatus: normalizedRelationStatus
     }
@@ -156,6 +158,20 @@ export const useFriendStore = defineStore('friend', () => {
       return false
     } catch (error) {
       console.error('Failed to send friend request:', error)
+      throw error
+    }
+  }
+
+  async function sendFriendRequestByUserNo(friendUserNo: string, message?: string) {
+    try {
+      const response = await friendRequestApi.sendByUserNo({ friendUserNo, message })
+      if (response.code === 200) {
+        await fetchSentRequests()
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Failed to send friend request by userNo:', error)
       throw error
     }
   }
@@ -545,6 +561,7 @@ export const useFriendStore = defineStore('friend', () => {
     fetchPrivateLatestMessages,
     addFriend,
     sendFriendRequest,
+    sendFriendRequestByUserNo,
     fetchReceivedRequests,
     fetchSentRequests,
     acceptFriendRequest,

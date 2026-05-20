@@ -60,8 +60,8 @@ const exitRoom = () => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: var(--bg-white);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--workspace-panel-muted);
+  border-bottom: 1px solid var(--workspace-border);
 }
 
 .chat-info {
