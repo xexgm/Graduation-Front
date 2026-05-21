@@ -70,7 +70,7 @@
                 </div>
               </template>
               <template v-else>
-                {{ msg.content }}
+                <span class="message-text" v-html="renderMessageContent(msg.content)" />
               </template>
             </div>
             <div class="msg-meta">
@@ -97,7 +97,7 @@
       </div>
     </el-scrollbar>
 
-    <div class="chat-input-area">
+    <div ref="inputRootRef" class="chat-input-area">
       <el-input
         v-model="inputContent"
         type="textarea"
@@ -106,7 +106,23 @@
         resize="none"
         @keydown.enter.prevent="handleSend"
       />
+      <div v-if="showEmojiPanel" class="emoji-panel">
+        <div class="emoji-section-title">常用 Emoji</div>
+        <div class="emoji-grid">
+          <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
+            {{ emoji }}
+          </button>
+        </div>
+        <div class="emoji-section-title">内置表情</div>
+        <div class="built-in-grid">
+          <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
+            <img :src="emoji.src" :alt="emoji.label" />
+            <span>{{ emoji.label }}</span>
+          </button>
+        </div>
+      </div>
       <div class="input-actions">
+        <el-button class="emoji-action" @click="showEmojiPanel = !showEmojiPanel">😊 表情</el-button>
         <el-button :icon="Paperclip" @click="handleFileSelect">
           文件
         </el-button>
@@ -138,6 +154,7 @@ import { useVoiceTranscriptionStore } from '@/stores/voiceTranscription'
 import { useRouter } from 'vue-router'
 import { fileApi } from '@/api'
 import { toApiAssetUrl } from '@/utils/url'
+import { builtInEmojiOptions, renderMessageContent, unicodeEmojiOptions } from '@/utils/emoji'
 import {
   buildAudioMessageContent,
   buildFileMessageContent,
@@ -158,10 +175,12 @@ const router = useRouter()
 
 const inputContent = ref('')
 const scrollbarRef = ref()
+const inputRootRef = ref<HTMLElement>()
 const messageContainerRef = ref<HTMLElement>()
 const bottomAnchorRef = ref<HTMLElement>()
 const fileInputRef = ref<HTMLInputElement>()
 const isRecording = ref(false)
+const showEmojiPanel = ref(false)
 const recordingSeconds = ref(0)
 const mediaRecorder = ref<MediaRecorder | null>(null)
 const mediaStream = ref<MediaStream | null>(null)
@@ -314,7 +333,21 @@ const handleSend = async () => {
   
   await friendStore.sendPrivateMessage(content)
   inputContent.value = ''
+  showEmojiPanel.value = false
   scrollToBottom()
+}
+
+const insertEmoji = async (value: string) => {
+  const textarea = inputRootRef.value?.querySelector('textarea')
+  const start = textarea?.selectionStart ?? inputContent.value.length
+  const end = textarea?.selectionEnd ?? inputContent.value.length
+  inputContent.value = `${inputContent.value.slice(0, start)}${value}${inputContent.value.slice(end)}`
+  showEmojiPanel.value = false
+
+  await nextTick()
+  const nextCursor = start + value.length
+  textarea?.focus()
+  textarea?.setSelectionRange(nextCursor, nextCursor)
 }
 
 const retryMessage = async (message: Message) => {
@@ -666,6 +699,7 @@ onUnmounted(() => {
   padding: 16px;
   background: var(--workspace-panel-muted);
   border-top: 1px solid var(--workspace-border);
+  position: relative;
   
   :deep(.el-textarea__inner) {
     color: var(--text-primary);
@@ -682,6 +716,74 @@ onUnmounted(() => {
       color: var(--text-placeholder);
     }
   }
+}
+
+.emoji-panel {
+  position: absolute;
+  left: 16px;
+  bottom: 88px;
+  z-index: 20;
+  width: 280px;
+  padding: 12px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 16px;
+  background: var(--workspace-panel-solid);
+  box-shadow: var(--workspace-shadow);
+}
+
+.emoji-section-title {
+  margin: 4px 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.emoji-grid,
+.built-in-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.emoji-grid {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.built-in-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.emoji-option,
+.built-in-option {
+  border: 1px solid var(--workspace-border);
+  border-radius: 10px;
+  background: var(--workspace-panel-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.emoji-option {
+  height: 34px;
+  font-size: 20px;
+}
+
+.built-in-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+
+  img {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+}
+
+.emoji-option:hover,
+.built-in-option:hover {
+  border-color: var(--brand-primary);
+  background: var(--workspace-card-hover);
 }
 
 .input-actions {

@@ -1,6 +1,7 @@
 <template>
-  <div class="message-input">
+  <div ref="inputRootRef" class="message-input">
     <div class="input-tools">
+      <el-button type="text" class="emoji-tool" @click="showEmojiPanel = !showEmojiPanel">😊</el-button>
       <el-button type="text" :icon="Picture" @click="handleImageUpload" />
       <el-button type="text" :icon="Paperclip" @click="handleFileUpload" />
       <el-button
@@ -10,6 +11,21 @@
         @click="toggleRecording"
       />
       <span v-if="isRecording" class="recording-tip">录音中 {{ recordingSeconds }}s，再次点击发送</span>
+    </div>
+    <div v-if="showEmojiPanel" class="emoji-panel">
+      <div class="emoji-section-title">常用 Emoji</div>
+      <div class="emoji-grid">
+        <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
+          {{ emoji }}
+        </button>
+      </div>
+      <div class="emoji-section-title">内置表情</div>
+      <div class="built-in-grid">
+        <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
+          <img :src="emoji.src" :alt="emoji.label" />
+          <span>{{ emoji.label }}</span>
+        </button>
+      </div>
     </div>
     
     <div class="input-area">
@@ -64,6 +80,7 @@ import {
 } from '@element-plus/icons-vue'
 import { fileApi } from '@/api'
 import { buildAudioMessageContent, buildFileMessageContent } from '@/utils/fileMessage'
+import { builtInEmojiOptions, unicodeEmojiOptions } from '@/utils/emoji'
 import type { Message } from '@/types'
 
 const emit = defineEmits<{
@@ -71,8 +88,10 @@ const emit = defineEmits<{
 }>()
 
 const inputText = ref('')
+const inputRootRef = ref<HTMLElement>()
 const imageInputRef = ref<HTMLInputElement>()
 const fileInputRef = ref<HTMLInputElement>()
+const showEmojiPanel = ref(false)
 const isTyping = ref(false)
 const typingTimer = ref<number>()
 const isRecording = ref(false)
@@ -97,7 +116,21 @@ const handleSend = () => {
   
   emit('send', content, 'text')
   inputText.value = ''
+  showEmojiPanel.value = false
   stopTyping()
+}
+
+const insertEmoji = async (value: string) => {
+  const textarea = inputRootRef.value?.querySelector('textarea')
+  const start = textarea?.selectionStart ?? inputText.value.length
+  const end = textarea?.selectionEnd ?? inputText.value.length
+  inputText.value = `${inputText.value.slice(0, start)}${value}${inputText.value.slice(end)}`
+  showEmojiPanel.value = false
+
+  await nextTick()
+  const nextCursor = start + value.length
+  textarea?.focus()
+  textarea?.setSelectionRange(nextCursor, nextCursor)
 }
 
 const handleInput = () => {
@@ -289,6 +322,7 @@ const handleFileChange = async (event: Event) => {
   background: var(--workspace-panel-muted);
   border-top: 1px solid var(--workspace-border);
   padding: 16px 20px;
+  position: relative;
 }
 
 .input-tools {
@@ -310,6 +344,79 @@ const handleFileChange = async (event: Event) => {
       background: rgba(245, 108, 108, 0.12);
     }
   }
+}
+
+.emoji-tool {
+  font-size: 18px;
+}
+
+.emoji-panel {
+  position: absolute;
+  left: 20px;
+  bottom: 116px;
+  z-index: 20;
+  width: 280px;
+  padding: 12px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 16px;
+  background: var(--workspace-panel-solid);
+  box-shadow: var(--workspace-shadow);
+}
+
+.emoji-section-title {
+  margin: 4px 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.emoji-grid,
+.built-in-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.emoji-grid {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.built-in-grid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 4px;
+}
+
+.emoji-option,
+.built-in-option {
+  border: 1px solid var(--workspace-border);
+  border-radius: 10px;
+  background: var(--workspace-panel-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.emoji-option {
+  height: 34px;
+  font-size: 20px;
+}
+
+.built-in-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+
+  img {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+}
+
+.emoji-option:hover,
+.built-in-option:hover {
+  border-color: var(--brand-primary);
+  background: var(--workspace-card-hover);
 }
 
 .recording-tip {

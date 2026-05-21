@@ -4,6 +4,7 @@ import type { Conversation, Message } from '@/types'
 import { useChatStore } from './chat'
 import { useFriendStore } from './friend'
 import { formatAudioDuration, parseAudioMessageContent, parseFileMessageContent } from '@/utils/fileMessage'
+import { formatEmojiPreview } from '@/utils/emoji'
 
 function toConversationKey(type: 'private' | 'room', id: number): string {
   return `${type}:${id}`
@@ -26,7 +27,7 @@ function formatLastMessage(message?: Message): string | undefined {
     return '图片消息'
   }
 
-  return message.content
+  return formatEmojiPreview(message.content)
 }
 
 export const useConversationStore = defineStore('conversation', () => {

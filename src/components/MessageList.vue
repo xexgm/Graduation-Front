@@ -39,7 +39,7 @@
                   }"
                 >
                   <template v-if="message.type === 'text'">
-                    <div class="message-text">{{ message.content }}</div>
+                    <div class="message-text" v-html="renderMessageContent(message.content)" />
                   </template>
                   <template v-else-if="message.type === 'image'">
                     <img :src="message.content" class="message-image" @click="previewImage(message.content)" />
@@ -129,6 +129,7 @@ import { useChatStore } from '@/stores/chat'
 import { useVoiceTranscriptionStore } from '@/stores/voiceTranscription'
 import { fileApi } from '@/api'
 import { formatAudioDuration, formatFileSize, parseAudioMessageContent, parseFileMessageContent } from '@/utils/fileMessage'
+import { renderMessageContent } from '@/utils/emoji'
 import { toApiAssetUrl } from '@/utils/url'
 import type { ChatRoom, Message } from '@/types'
 

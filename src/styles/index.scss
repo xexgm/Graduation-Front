@@ -188,3 +188,11 @@ body {
 .el-notification {
   backdrop-filter: blur(10px);
 }
+
+.inline-emoji-img {
+  width: 24px;
+  height: 24px;
+  margin: 0 2px;
+  vertical-align: -6px;
+  border-radius: 7px;
+}
