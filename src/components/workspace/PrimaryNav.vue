@@ -104,6 +104,12 @@ const currentUserInitial = computed(() => (userStore.user?.nickname || userStore
   background: var(--workspace-nav);
   box-shadow: var(--workspace-shadow);
   backdrop-filter: blur(22px);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    border-color: rgba(59, 130, 246, 0.26);
+    box-shadow: var(--workspace-shadow-hover);
+  }
 }
 
 .nav-brand {
@@ -122,6 +128,12 @@ const currentUserInitial = computed(() => (userStore.user?.nickname || userStore
   border-radius: 16px;
   background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
   box-shadow: 0 14px 30px var(--workspace-glow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 18px 34px var(--workspace-glow-strong);
+  }
 }
 
 .current-user-avatar {
@@ -241,6 +253,8 @@ const currentUserInitial = computed(() => (userStore.user?.nickname || userStore
   height: 42px;
   border: 1px solid transparent;
   border-radius: 14px;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,11 +262,41 @@ const currentUserInitial = computed(() => (userStore.user?.nickname || userStore
   background: var(--workspace-panel-muted);
   transition: var(--transition-all);
 
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.28), transparent 42%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .el-icon {
+    position: relative;
+    z-index: 1;
+  }
+
   &.active {
     color: #fff;
     border-color: rgba(255, 255, 255, 0.22);
     background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
     box-shadow: 0 12px 26px var(--workspace-glow);
+
+    &::before {
+      opacity: 1;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+    }
   }
 
   &.disabled {
@@ -266,9 +310,23 @@ const currentUserInitial = computed(() => (userStore.user?.nickname || userStore
     &:hover {
       color: var(--brand-primary);
       border-color: var(--workspace-border);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
       background: var(--workspace-card-hover);
+      box-shadow: 0 10px 22px var(--workspace-glow);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-nav,
+  .brand-dot,
+  .nav-item {
+    transition: none;
+  }
+
+  .brand-dot:hover,
+  .nav-item:not(.disabled):hover {
+    transform: none;
   }
 }
 </style>

@@ -122,12 +122,27 @@ const handleCreateRoom = async () => {
   width: 330px;
   border: 1px solid var(--workspace-border);
   border-radius: 24px;
+  position: relative;
   background: var(--workspace-panel);
   box-shadow: var(--workspace-shadow);
   backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--chat-surface-glow), transparent 36%);
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .pane-header {
@@ -157,13 +172,44 @@ const handleCreateRoom = async () => {
   padding: 12px;
   border: 1px solid transparent;
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
   margin-bottom: 8px;
   transition: var(--transition-all);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--workspace-glow), transparent 55%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .room-main,
+  .el-button {
+    position: relative;
+    z-index: 1;
+  }
+
+  .el-avatar {
+    transition: transform 0.24s ease, box-shadow 0.24s ease;
+  }
 
   &:hover {
     border-color: var(--workspace-border);
     background: var(--workspace-card-hover);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--workspace-shadow-hover);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .el-avatar {
+      transform: scale(1.04);
+      box-shadow: 0 8px 18px var(--workspace-glow);
+    }
   }
 }
 
@@ -196,6 +242,19 @@ const handleCreateRoom = async () => {
 
 .empty-state {
   padding-top: 30px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-item,
+  .room-item::before,
+  .room-item .el-avatar {
+    transition: none;
+  }
+
+  .room-item:hover,
+  .room-item:hover .el-avatar {
+    transform: none;
+  }
 }
 </style>
 

@@ -12,21 +12,23 @@
       />
       <span v-if="isRecording" class="recording-tip">录音中 {{ recordingSeconds }}s，再次点击发送</span>
     </div>
-    <div v-if="showEmojiPanel" class="emoji-panel">
-      <div class="emoji-section-title">常用 Emoji</div>
-      <div class="emoji-grid">
-        <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
-          {{ emoji }}
-        </button>
+    <Transition name="emoji-pop">
+      <div v-if="showEmojiPanel" class="emoji-panel">
+        <div class="emoji-section-title">常用 Emoji</div>
+        <div class="emoji-grid">
+          <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
+            {{ emoji }}
+          </button>
+        </div>
+        <div class="emoji-section-title">内置表情</div>
+        <div class="built-in-grid">
+          <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
+            <img :src="emoji.src" :alt="emoji.label" />
+            <span>{{ emoji.label }}</span>
+          </button>
+        </div>
       </div>
-      <div class="emoji-section-title">内置表情</div>
-      <div class="built-in-grid">
-        <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
-          <img :src="emoji.src" :alt="emoji.label" />
-          <span>{{ emoji.label }}</span>
-        </button>
-      </div>
-    </div>
+    </Transition>
     
     <div class="input-area">
       <el-input
@@ -323,6 +325,7 @@ const handleFileChange = async (event: Event) => {
   border-top: 1px solid var(--workspace-border);
   padding: 16px 20px;
   position: relative;
+  box-shadow: 0 -12px 30px rgba(15, 23, 42, 0.04);
 }
 
 .input-tools {
@@ -333,10 +336,13 @@ const handleFileChange = async (event: Event) => {
   .el-button {
     color: var(--text-secondary);
     font-size: 18px;
+    border-radius: 12px;
+    transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
     
     &:hover {
       color: var(--primary-color);
       background: var(--workspace-card-hover);
+      transform: translateY(-1px);
     }
 
     &.is-recording {
@@ -361,6 +367,18 @@ const handleFileChange = async (event: Event) => {
   border-radius: 16px;
   background: var(--workspace-panel-solid);
   box-shadow: var(--workspace-shadow);
+  transform-origin: left bottom;
+}
+
+.emoji-pop-enter-active,
+.emoji-pop-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.emoji-pop-enter-from,
+.emoji-pop-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
 }
 
 .emoji-section-title {
@@ -390,7 +408,7 @@ const handleFileChange = async (event: Event) => {
   border-radius: 10px;
   background: var(--workspace-panel-muted);
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
 .emoji-option {
@@ -417,6 +435,7 @@ const handleFileChange = async (event: Event) => {
 .built-in-option:hover {
   border-color: var(--brand-primary);
   background: var(--workspace-card-hover);
+  transform: translateY(-1px);
 }
 
 .recording-tip {
@@ -436,7 +455,7 @@ const handleFileChange = async (event: Event) => {
   flex: 1;
   
   :deep(.el-textarea__inner) {
-    border-radius: var(--radius-large);
+    border-radius: 16px;
     border: 1px solid var(--workspace-border);
     padding: 12px 16px;
     color: var(--text-primary);
@@ -448,7 +467,8 @@ const handleFileChange = async (event: Event) => {
     
     &:focus {
       border-color: var(--primary-color);
-      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+      background: var(--chat-input-focus);
+      box-shadow: 0 0 0 3px var(--workspace-glow);
     }
     
     &::placeholder {
@@ -460,14 +480,19 @@ const handleFileChange = async (event: Event) => {
 .send-btn {
   width: 44px;
   height: 44px;
-  background: var(--primary-color);
+  background: var(--chat-bubble-sent);
   border: none;
   transition: var(--transition-all);
+  box-shadow: 0 12px 24px var(--workspace-glow);
   
   &:hover:not(:disabled) {
-    background: var(--primary-color);
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+    background: var(--chat-bubble-sent-hover);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 16px 30px var(--workspace-glow-strong);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
   }
   
   &:disabled {
@@ -479,6 +504,25 @@ const handleFileChange = async (event: Event) => {
   
   .el-icon {
     font-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input-tools .el-button,
+  .emoji-pop-enter-active,
+  .emoji-pop-leave-active,
+  .emoji-option,
+  .built-in-option,
+  .send-btn {
+    transition: none;
+  }
+
+  .input-tools .el-button:hover,
+  .emoji-option:hover,
+  .built-in-option:hover,
+  .send-btn:hover:not(:disabled),
+  .send-btn:active:not(:disabled) {
+    transform: none;
   }
 }
 </style>

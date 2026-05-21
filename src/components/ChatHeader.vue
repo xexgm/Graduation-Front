@@ -13,8 +13,6 @@
     </div>
     
     <div class="chat-actions">
-      <el-button type="text" :icon="VideoCamera" />
-      <el-button type="text" :icon="Phone" />
       <el-button type="text" @click="exitRoom">退出</el-button>
       <el-button type="text" :icon="MoreFilled" />
     </div>
@@ -23,7 +21,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { VideoCamera, Phone, MoreFilled } from '@element-plus/icons-vue'
+import { MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
 import type { ChatRoom } from '@/types'

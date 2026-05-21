@@ -389,6 +389,9 @@ watch(messages, (list) => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
+  background:
+    radial-gradient(circle at 18% 10%, var(--chat-surface-glow), transparent 26%),
+    var(--chat-surface-muted);
 }
 
 .messages-container {
@@ -409,9 +412,11 @@ watch(messages, (list) => {
   span {
     background: var(--workspace-panel-muted);
     color: var(--text-secondary);
-    padding: 4px 12px;
+    padding: 5px 12px;
     border-radius: var(--radius-large);
+    border: 1px solid var(--workspace-border);
     font-size: 12px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
   }
 }
 
@@ -440,6 +445,12 @@ watch(messages, (list) => {
   margin-right: 8px;
   flex-shrink: 0;
   cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px) scale(1.04);
+    filter: drop-shadow(0 8px 14px var(--workspace-glow));
+  }
 }
 
 .message-content {
@@ -457,21 +468,36 @@ watch(messages, (list) => {
 
 .message-bubble {
   border-radius: var(--radius-large);
-  padding: 8px 12px;
+  padding: 9px 13px;
   position: relative;
   word-wrap: break-word;
   animation: messageSlideIn 0.3s ease-out;
+  box-shadow: var(--chat-bubble-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   
   &.sent {
-    background: var(--primary-color);
+    background: var(--chat-bubble-sent);
     color: white;
     margin-left: auto;
+
+    &:hover {
+      background: var(--chat-bubble-sent-hover);
+    }
   }
   
   &.received {
     background: var(--chat-bubble-received);
     color: var(--text-primary);
     border: 1px solid var(--workspace-border);
+
+    &:hover {
+      background: var(--chat-bubble-received-hover);
+    }
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px var(--workspace-glow);
   }
 }
 
@@ -499,6 +525,12 @@ watch(messages, (list) => {
   background: var(--workspace-panel-muted);
   border-radius: var(--radius-base);
   cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    background: var(--workspace-card-hover);
+    transform: translateY(-1px);
+  }
   
   .el-icon {
     font-size: 20px;
@@ -537,6 +569,12 @@ watch(messages, (list) => {
   border-radius: var(--radius-base);
   background: var(--workspace-panel-muted);
   cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    background: var(--workspace-card-hover);
+    transform: translateY(-1px);
+  }
 
   .el-icon {
     font-size: 18px;
@@ -655,6 +693,24 @@ watch(messages, (list) => {
 .message-enter-from {
   opacity: 0;
   transform: translateY(20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-avatar,
+  .message-bubble,
+  .message-file,
+  .message-audio,
+  .message-enter-active {
+    animation: none;
+    transition: none;
+  }
+
+  .message-avatar:hover,
+  .message-bubble:hover,
+  .message-file:hover,
+  .message-audio:hover {
+    transform: none;
+  }
 }
 
 @keyframes messageSlideIn {

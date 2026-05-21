@@ -62,9 +62,26 @@ const handleSendMessage = async (content: string, type: Message['type'] = 'text'
   overflow: hidden;
   border: 1px solid var(--workspace-border);
   border-radius: 24px;
+  position: relative;
   background: var(--workspace-panel);
   box-shadow: var(--workspace-shadow);
   backdrop-filter: blur(22px);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 84% 18%, var(--chat-surface-glow), transparent 26%),
+      linear-gradient(135deg, transparent, var(--workspace-glow-soft));
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .empty-wrap {
@@ -96,6 +113,7 @@ const handleSendMessage = async (content: string, type: Message['type'] = 'text'
   border-radius: 28px;
   background: var(--workspace-card);
   box-shadow: var(--workspace-shadow);
+  animation: emptyHeroIn 0.45s ease-out;
 
   h2 {
     margin: 16px 0 10px;
@@ -122,6 +140,7 @@ const handleSendMessage = async (content: string, type: Message['type'] = 'text'
   border-radius: 24px;
   background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
   box-shadow: 0 20px 44px var(--workspace-glow);
+  animation: heroPulse 3.2s ease-in-out infinite;
 }
 
 .minimal-logo {
@@ -171,6 +190,50 @@ const handleSendMessage = async (content: string, type: Message['type'] = 'text'
     color: var(--text-secondary);
     background: var(--workspace-panel-muted);
     font-size: 12px;
+    transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: var(--brand-primary);
+      color: var(--brand-primary);
+    }
+  }
+}
+
+@keyframes emptyHeroIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroPulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 20px 44px var(--workspace-glow);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 52px var(--workspace-glow-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-hero,
+  .hero-mark {
+    animation: none;
+  }
+
+  .hero-tags span {
+    transition: none;
+  }
+
+  .hero-tags span:hover {
+    transform: none;
   }
 }
 </style>

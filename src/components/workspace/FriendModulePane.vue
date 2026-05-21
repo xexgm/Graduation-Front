@@ -231,12 +231,27 @@ onMounted(() => {
   width: 330px;
   border: 1px solid var(--workspace-border);
   border-radius: 24px;
+  position: relative;
   background: var(--workspace-panel);
   box-shadow: var(--workspace-shadow);
   backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--chat-surface-glow), transparent 36%);
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .pane-header {
@@ -265,14 +280,45 @@ onMounted(() => {
   padding: 12px;
   border: 1px solid transparent;
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
   margin-bottom: 8px;
   transition: var(--transition-all);
 
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--workspace-glow), transparent 55%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .el-avatar,
+  .meta {
+    position: relative;
+    z-index: 1;
+  }
+
+  .el-avatar {
+    transition: transform 0.24s ease, box-shadow 0.24s ease;
+  }
+
   &:hover {
     border-color: var(--workspace-border);
     background: var(--workspace-card-hover);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--workspace-shadow-hover);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .el-avatar {
+      transform: scale(1.04);
+      box-shadow: 0 8px 18px var(--workspace-glow);
+    }
   }
 }
 
@@ -304,6 +350,13 @@ onMounted(() => {
   border: 1px solid var(--workspace-border);
   border-radius: 18px;
   background: var(--workspace-panel-muted);
+  transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+
+  &:hover {
+    border-color: rgba(59, 130, 246, 0.28);
+    box-shadow: 0 12px 24px var(--workspace-glow);
+    transform: translateY(-1px);
+  }
 }
 
 .request-header {
@@ -375,6 +428,21 @@ onMounted(() => {
 .request-actions {
   display: flex;
   gap: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-item,
+  .friend-item::before,
+  .friend-item .el-avatar,
+  .request-card {
+    transition: none;
+  }
+
+  .friend-item:hover,
+  .friend-item:hover .el-avatar,
+  .request-card:hover {
+    transform: none;
+  }
 }
 </style>
 

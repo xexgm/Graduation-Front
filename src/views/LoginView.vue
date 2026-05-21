@@ -1,5 +1,10 @@
 <template>
-  <div class="login-container">
+  <div
+    class="login-container"
+    :style="pointerVars"
+    @pointermove="handlePointerMove"
+    @pointerleave="resetPointerEffect"
+  >
     <div class="aurora aurora-primary"></div>
     <div class="aurora aurora-secondary"></div>
     <div class="grid-layer"></div>
@@ -107,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
@@ -136,6 +141,56 @@ const rules: FormRules = {
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于 6 个字符', trigger: 'blur' }
   ]
+}
+
+const pointerState = reactive({
+  x: 0.5,
+  y: 0.5,
+  active: false
+})
+
+const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
+
+const pointerVars = computed<Record<string, string>>(() => {
+  const moveX = pointerState.active ? pointerState.x - 0.5 : 0
+  const moveY = pointerState.active ? pointerState.y - 0.5 : 0
+
+  return {
+    '--mouse-x': `${pointerState.x * 100}%`,
+    '--mouse-y': `${pointerState.y * 100}%`,
+    '--spotlight-opacity': pointerState.active ? '1' : '0',
+    '--card-glow-opacity': pointerState.active ? '0.72' : '0',
+    '--tilt-x': `${moveY * -6}deg`,
+    '--tilt-y': `${moveX * 7}deg`,
+    '--parallax-x': `${moveX * 34}px`,
+    '--parallax-y': `${moveY * 28}px`,
+    '--parallax-x-soft': `${moveX * -18}px`,
+    '--parallax-y-soft': `${moveY * -16}px`,
+    '--grid-x': `${moveX * 12}px`,
+    '--grid-y': `${moveY * 12}px`,
+    '--orb-1-x': `${moveX * 14}px`,
+    '--orb-1-y': `${moveY * 11}px`,
+    '--orb-2-x': `${moveX * -9}px`,
+    '--orb-2-y': `${moveY * -8}px`,
+    '--orb-3-x': `${moveX * 8}px`,
+    '--orb-3-y': `${moveY * -6}px`
+  }
+})
+
+const handlePointerMove = (event: PointerEvent) => {
+  const target = event.currentTarget as HTMLElement | null
+  if (!target) return
+
+  const rect = target.getBoundingClientRect()
+  pointerState.x = clamp((event.clientX - rect.left) / rect.width)
+  pointerState.y = clamp((event.clientY - rect.top) / rect.height)
+  pointerState.active = true
+}
+
+const resetPointerEffect = () => {
+  pointerState.x = 0.5
+  pointerState.y = 0.5
+  pointerState.active = false
 }
 
 const handleLogin = async () => {
@@ -178,6 +233,25 @@ const handleLogin = async () => {
 
 <style scoped lang="scss">
 .login-container {
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --spotlight-opacity: 0;
+  --card-glow-opacity: 0;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --parallax-x: 0px;
+  --parallax-y: 0px;
+  --parallax-x-soft: 0px;
+  --parallax-y-soft: 0px;
+  --grid-x: 0px;
+  --grid-y: 0px;
+  --orb-1-x: 0px;
+  --orb-1-y: 0px;
+  --orb-2-x: 0px;
+  --orb-2-y: 0px;
+  --orb-3-x: 0px;
+  --orb-3-y: 0px;
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,11 +260,24 @@ const handleLogin = async () => {
   position: relative;
   overflow: hidden;
   padding: 48px;
+  perspective: 1200px;
   background:
     radial-gradient(circle at 18% 22%, rgba(56, 189, 248, 0.2), transparent 28%),
     radial-gradient(circle at 78% 24%, rgba(139, 92, 246, 0.22), transparent 30%),
     linear-gradient(135deg, #050816 0%, #08111f 48%, #0b1020 100%);
   color: #eef6ff;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(56, 189, 248, 0.16), transparent 28%),
+      radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(168, 85, 247, 0.12), transparent 42%);
+    opacity: var(--spotlight-opacity);
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+  }
 
   &::after {
     content: '';
@@ -207,6 +294,8 @@ const handleLogin = async () => {
   filter: blur(18px);
   opacity: 0.78;
   pointer-events: none;
+  transition: transform 0.2s ease-out;
+  will-change: transform;
 }
 
 .aurora-primary {
@@ -215,6 +304,7 @@ const handleLogin = async () => {
   top: -90px;
   right: 12%;
   background: radial-gradient(circle, rgba(59, 130, 246, 0.5), transparent 68%);
+  transform: translate3d(var(--parallax-x), var(--parallax-y), 0);
 }
 
 .aurora-secondary {
@@ -223,17 +313,21 @@ const handleLogin = async () => {
   left: -120px;
   bottom: -140px;
   background: radial-gradient(circle, rgba(168, 85, 247, 0.38), transparent 70%);
+  transform: translate3d(var(--parallax-x-soft), var(--parallax-y-soft), 0);
 }
 
 .grid-layer {
   position: absolute;
-  inset: 0;
+  inset: -24px;
   opacity: 0.18;
   background-image:
     linear-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(circle at center, #000 0%, transparent 72%);
+  transform: translate3d(var(--grid-x), var(--grid-y), 0);
+  transition: transform 0.2s ease-out;
+  will-change: transform;
 }
 
 .brand-panel {
@@ -285,6 +379,14 @@ const handleLogin = async () => {
     border-radius: 18px;
     background: rgba(15, 23, 42, 0.44);
     backdrop-filter: blur(18px);
+    transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease, background 0.24s ease;
+
+    &:hover {
+      transform: translateY(-6px);
+      border-color: rgba(125, 211, 252, 0.42);
+      background: rgba(15, 23, 42, 0.62);
+      box-shadow: 0 18px 34px rgba(14, 165, 233, 0.16);
+    }
   }
 
   strong {
@@ -307,12 +409,42 @@ const handleLogin = async () => {
   border-radius: 28px;
   position: relative;
   z-index: 2;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.66));
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(24px);
   animation: slideInUp 0.6s ease-out;
+  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0);
+  transform-style: preserve-3d;
+  transition: transform 0.18s ease-out, border-color 0.24s ease, box-shadow 0.24s ease;
+  will-change: transform;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(360px circle at var(--mouse-x) var(--mouse-y), rgba(125, 211, 252, 0.18), transparent 42%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 28%);
+    opacity: var(--card-glow-opacity);
+    transition: opacity 0.24s ease;
+    pointer-events: none;
+  }
+
+  &:hover {
+    border-color: rgba(125, 211, 252, 0.36);
+    box-shadow:
+      0 34px 96px rgba(0, 0, 0, 0.46),
+      0 0 42px rgba(59, 130, 246, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .login-header {
@@ -541,8 +673,12 @@ const handleLogin = async () => {
   border: 1px solid rgba(125, 211, 252, 0.18);
   background: rgba(125, 211, 252, 0.08);
   animation: float 7s ease-in-out infinite;
+  will-change: transform;
 
   &.orb-1 {
+    --orb-x: var(--orb-1-x);
+    --orb-y: var(--orb-1-y);
+
     width: 86px;
     height: 86px;
     top: 18%;
@@ -550,6 +686,9 @@ const handleLogin = async () => {
   }
 
   &.orb-2 {
+    --orb-x: var(--orb-2-x);
+    --orb-y: var(--orb-2-y);
+
     width: 54px;
     height: 54px;
     right: 18%;
@@ -558,6 +697,9 @@ const handleLogin = async () => {
   }
 
   &.orb-3 {
+    --orb-x: var(--orb-3-x);
+    --orb-y: var(--orb-3-y);
+
     width: 34px;
     height: 34px;
     right: 34%;
@@ -590,10 +732,28 @@ const handleLogin = async () => {
 
 @keyframes float {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translate3d(var(--orb-x, 0px), var(--orb-y, 0px), 0) translateY(0px);
   }
   50% {
-    transform: translateY(-20px);
+    transform: translate3d(var(--orb-x, 0px), var(--orb-y, 0px), 0) translateY(-20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-container::before,
+  .login-card::before {
+    display: none;
+  }
+
+  .aurora,
+  .grid-layer,
+  .login-card,
+  .floating-orb,
+  .brand-metrics div,
+  .login-btn {
+    animation: none;
+    transition: none;
+    transform: none !important;
   }
 }
 

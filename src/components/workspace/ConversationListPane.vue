@@ -84,12 +84,27 @@ const refreshAll = async () => {
   width: 330px;
   border: 1px solid var(--workspace-border);
   border-radius: 24px;
+  position: relative;
   background: var(--workspace-panel);
   box-shadow: var(--workspace-shadow);
   backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--chat-surface-glow), transparent 36%);
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .pane-header {
@@ -114,6 +129,14 @@ const refreshAll = async () => {
     border-radius: 14px;
     background: var(--workspace-input);
     box-shadow: none;
+    transition: var(--transition-all);
+
+    &:hover,
+    &.is-focus {
+      border-color: var(--brand-primary);
+      background: var(--chat-input-focus);
+      box-shadow: 0 0 0 3px var(--workspace-glow);
+    }
   }
 }
 
@@ -129,21 +152,67 @@ const refreshAll = async () => {
   padding: 12px;
   border: 1px solid transparent;
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
   margin-bottom: 8px;
   background: transparent;
   transition: var(--transition-all);
 
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--workspace-glow), transparent 55%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .el-avatar,
+  .meta {
+    position: relative;
+    z-index: 1;
+  }
+
+  .el-avatar {
+    transition: transform 0.24s ease, box-shadow 0.24s ease;
+  }
+
   &:hover {
     border-color: var(--workspace-border);
     background: var(--workspace-card-hover);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--workspace-shadow-hover);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .el-avatar {
+      transform: scale(1.04);
+      box-shadow: 0 8px 18px var(--workspace-glow);
+    }
   }
 
   &.active {
     border-color: rgba(59, 130, 246, 0.24);
     background: var(--workspace-card-active);
     box-shadow: 0 12px 28px var(--workspace-glow);
+
+    &::before {
+      opacity: 1;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 18%;
+      width: 3px;
+      height: 64%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--brand-primary), var(--brand-accent));
+    }
   }
 }
 
@@ -182,6 +251,20 @@ const refreshAll = async () => {
 
 .empty-state {
   padding-top: 30px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-wrap :deep(.el-input__wrapper),
+  .conversation-item,
+  .conversation-item::before,
+  .conversation-item .el-avatar {
+    transition: none;
+  }
+
+  .conversation-item:hover,
+  .conversation-item:hover .el-avatar {
+    transform: none;
+  }
 }
 </style>
 

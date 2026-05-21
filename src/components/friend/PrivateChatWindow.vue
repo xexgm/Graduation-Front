@@ -106,21 +106,23 @@
         resize="none"
         @keydown.enter.prevent="handleSend"
       />
-      <div v-if="showEmojiPanel" class="emoji-panel">
-        <div class="emoji-section-title">常用 Emoji</div>
-        <div class="emoji-grid">
-          <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
-            {{ emoji }}
-          </button>
+      <Transition name="emoji-pop">
+        <div v-if="showEmojiPanel" class="emoji-panel">
+          <div class="emoji-section-title">常用 Emoji</div>
+          <div class="emoji-grid">
+            <button v-for="emoji in unicodeEmojiOptions" :key="emoji" class="emoji-option" @click="insertEmoji(emoji)">
+              {{ emoji }}
+            </button>
+          </div>
+          <div class="emoji-section-title">内置表情</div>
+          <div class="built-in-grid">
+            <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
+              <img :src="emoji.src" :alt="emoji.label" />
+              <span>{{ emoji.label }}</span>
+            </button>
+          </div>
         </div>
-        <div class="emoji-section-title">内置表情</div>
-        <div class="built-in-grid">
-          <button v-for="emoji in builtInEmojiOptions" :key="emoji.token" class="built-in-option" @click="insertEmoji(emoji.token)">
-            <img :src="emoji.src" :alt="emoji.label" />
-            <span>{{ emoji.label }}</span>
-          </button>
-        </div>
-      </div>
+      </Transition>
       <div class="input-actions">
         <el-button class="emoji-action" @click="showEmojiPanel = !showEmojiPanel">😊 表情</el-button>
         <el-button :icon="Paperclip" @click="handleFileSelect">
@@ -566,7 +568,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--chat-surface);
+  background:
+    radial-gradient(circle at 18% 8%, var(--chat-surface-glow), transparent 26%),
+    var(--chat-surface);
 }
 
 .empty-chat-selection {
@@ -584,6 +588,7 @@ onUnmounted(() => {
   padding: 12px 20px;
   border-bottom: 1px solid var(--workspace-border);
   background: var(--workspace-panel-muted);
+  backdrop-filter: blur(18px);
   
   .header-user-info {
     display: flex;
@@ -601,7 +606,9 @@ onUnmounted(() => {
 .message-list {
   flex: 1;
   padding: 20px;
-  background: var(--chat-surface-muted);
+  background:
+    radial-gradient(circle at 86% 12%, var(--chat-surface-glow), transparent 28%),
+    var(--chat-surface-muted);
 }
 
 .message-container {
@@ -619,6 +626,7 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   max-width: 80%;
+  animation: privateMessageIn 0.28s ease-out;
 
   &.message-mine {
     align-self: flex-end;
@@ -632,6 +640,10 @@ onUnmounted(() => {
       background: var(--chat-bubble-sent);
       color: white;
       border-radius: 12px 0 12px 12px;
+
+      &:hover {
+        background: var(--chat-bubble-sent-hover);
+      }
     }
   }
 }
@@ -639,6 +651,12 @@ onUnmounted(() => {
 .msg-avatar,
 .clickable-avatar {
   cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px) scale(1.04);
+    filter: drop-shadow(0 8px 14px var(--workspace-glow));
+  }
 }
 
 .msg-content-wrapper {
@@ -660,8 +678,16 @@ onUnmounted(() => {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--workspace-border);
+  box-shadow: var(--chat-bubble-shadow);
   word-break: break-word;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    background: var(--chat-bubble-received-hover);
+    box-shadow: 0 14px 30px var(--workspace-glow);
+    transform: translateY(-1px);
+  }
 }
 
 .msg-meta {
@@ -700,16 +726,20 @@ onUnmounted(() => {
   background: var(--workspace-panel-muted);
   border-top: 1px solid var(--workspace-border);
   position: relative;
+  box-shadow: 0 -12px 30px rgba(15, 23, 42, 0.04);
   
   :deep(.el-textarea__inner) {
     color: var(--text-primary);
     background: var(--chat-input-bg);
     border: 1px solid var(--workspace-border);
+    border-radius: 16px;
     box-shadow: none;
+    transition: var(--transition-all);
     
     &:focus {
       border-color: var(--brand-primary);
-      box-shadow: 0 0 0 2px var(--workspace-glow) inset;
+      background: var(--chat-input-focus);
+      box-shadow: 0 0 0 3px var(--workspace-glow);
     }
 
     &::placeholder {
@@ -729,6 +759,18 @@ onUnmounted(() => {
   border-radius: 16px;
   background: var(--workspace-panel-solid);
   box-shadow: var(--workspace-shadow);
+  transform-origin: left bottom;
+}
+
+.emoji-pop-enter-active,
+.emoji-pop-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.emoji-pop-enter-from,
+.emoji-pop-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
 }
 
 .emoji-section-title {
@@ -757,7 +799,7 @@ onUnmounted(() => {
   border-radius: 10px;
   background: var(--workspace-panel-muted);
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
 .emoji-option {
@@ -784,6 +826,7 @@ onUnmounted(() => {
 .built-in-option:hover {
   border-color: var(--brand-primary);
   background: var(--workspace-card-hover);
+  transform: translateY(-1px);
 }
 
 .input-actions {
@@ -796,6 +839,27 @@ onUnmounted(() => {
     color: var(--danger-color);
     border-color: var(--danger-color);
   }
+
+  .el-button {
+    border-radius: 12px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px var(--workspace-glow);
+    }
+  }
+
+  .el-button--primary {
+    background: var(--chat-bubble-sent);
+    border: none;
+    box-shadow: 0 12px 24px var(--workspace-glow);
+
+    &:hover:not(:disabled) {
+      background: var(--chat-bubble-sent-hover);
+      box-shadow: 0 16px 30px var(--workspace-glow-strong);
+    }
+  }
 }
 
 .private-file-card {
@@ -804,6 +868,11 @@ onUnmounted(() => {
   gap: 8px;
   min-width: 220px;
   cursor: pointer;
+  transition: transform 0.18s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
 
   .el-icon {
     font-size: 20px;
@@ -838,6 +907,11 @@ onUnmounted(() => {
   gap: 8px;
   min-width: 88px;
   cursor: pointer;
+  transition: transform 0.18s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
 
   .el-icon {
     font-size: 18px;
@@ -891,5 +965,44 @@ onUnmounted(() => {
 
 .transcription-error {
   color: var(--danger-color);
+}
+
+@keyframes privateMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-item,
+  .msg-avatar,
+  .clickable-avatar,
+  .msg-bubble,
+  .emoji-pop-enter-active,
+  .emoji-pop-leave-active,
+  .emoji-option,
+  .built-in-option,
+  .input-actions .el-button,
+  .private-file-card,
+  .private-audio-card {
+    animation: none;
+    transition: none;
+  }
+
+  .msg-avatar:hover,
+  .clickable-avatar:hover,
+  .msg-bubble:hover,
+  .emoji-option:hover,
+  .built-in-option:hover,
+  .input-actions .el-button:hover:not(:disabled),
+  .private-file-card:hover,
+  .private-audio-card:hover {
+    transform: none;
+  }
 }
 </style>
